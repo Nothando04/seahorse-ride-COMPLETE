@@ -42,6 +42,7 @@
       {% if current_user %}
         {% if current_user.is_staff %}<a href="{{ url_for('admin.dashboard') }}">Staff area</a>{% endif %}
         <a href="{{ url_for('account.my_bookings') }}" {% if ep.startswith('account.') %}aria-current="page"{% endif %}>My bookings</a>
+        <form method="post" action="{{ url_for('account.sign_out') }}" class="nav-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="nav-signout" data-keep>Sign out</button></form>
       {% else %}
         <a href="{{ url_for('account.sign_in') }}" {% if ep == 'account.sign_in' %}aria-current="page"{% endif %}>Sign in</a>
         <a href="{{ url_for('account.sign_up') }}" {% if ep == 'account.sign_up' %}aria-current="page"{% endif %}>Create account</a>

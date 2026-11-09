@@ -2,7 +2,13 @@
 {% from "partials/macros.html" import csrf %}
 {% block title %}Email outbox{% endblock %}
 {% block content %}
-<div class="admin-top"><h1>Email outbox</h1><form method="post">{{ csrf() }}<button class="btn btn-ocean btn-sm">Retry failed emails</button></form></div>
+<div class="admin-top"><h1>Email outbox</h1><form method="post">{{ csrf() }}<button class="btn btn-ocean btn-sm">Retry failed and recent emails</button></form></div>
+<div class="card" style="margin-bottom:16px">
+  <p style="margin:0 0 10px">Email service: {% if provider %}<span class="badge green">{{ provider }}</span>{% else %}<span class="badge red">Not set up — emails are only recorded here</span>{% endif %}</p>
+  <form method="post" class="row" style="align-items:end">{{ csrf() }}<input type="hidden" name="action" value="test">
+    <label style="flex:1">Send a test email to<input type="email" name="to" value="{{ current_user.email }}" required></label>
+    <button class="btn btn-ghost btn-sm" data-keep>Send test email</button></form>
+</div>
 <p class="small muted">Status <strong>logged</strong> means SMTP isn't configured yet, so the email was recorded here instead of sent — set the SMTP_* values in .env to send real emails. Failed emails are retried automatically (up to 5 times).</p>
 {% for n in items %}
 <details class="panel"><summary><span class="badge {{ {'sent':'green','failed':'red','logged':'blue'}.get(n.status, 'amber') }}">{{ n.status }}</span> {{ n.subject }} <span class="small muted">→ {{ n.to_email }} · {{ n.created_at|dt }}</span></summary>

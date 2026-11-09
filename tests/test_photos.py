@@ -54,3 +54,18 @@ def test_horse_photos_unique_and_credited(tmp_path, monkeypatch):
     assert cr["Storm"]["source"] != cr["Blaze"]["source"] and cr["Storm"]["license"] == "CC BY-SA 4.0"
     lib = hp.HorsePhotoLibrary(str(tmp_path))
     assert lib.file_for("Storm") == "storm.jpg" and lib.credit("Blaze")["artist"] == "A. Photographer"
+
+
+def test_own_horse_photo_overrides_stock(app, tmp_path):
+    import os
+    from seahorse.models import Horse
+    own = os.path.join(app.static_folder, "img", "horses", "own")
+    path = os.path.join(own, "willow.png")
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n")
+    try:
+        with app.test_request_context("/"):
+            h = Horse.query.filter_by(name="Willow").first() or Horse(name="Willow")
+            assert app.jinja_env.globals["horse_photo"](h).endswith("/static/img/horses/own/willow.png")
+            assert app.jinja_env.globals["horse_credit"](h) is None
+    finally:
+        os.remove(path)

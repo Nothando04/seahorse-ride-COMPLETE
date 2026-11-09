@@ -44,3 +44,33 @@ def test_owner_admin_is_created_even_when_demo_admin_exists(app, monkeypatch):
         db.session.commit()
         entry.ensure_admin()  # a restart must not reset the owner's new password
         assert User.query.filter_by(email="owner@example.com").first().check_password("ChangedByOwner99")
+
+
+def test_guide_logins_are_created_on_an_existing_database(app, monkeypatch):
+    """A database that only has other accounts still gets the three user-guide logins on the next start."""
+    import app as entry
+    monkeypatch.setattr(entry, "app", app)
+    monkeypatch.setenv("ADMIN_PASSWORD", "Seahorse@2026")
+    monkeypatch.setenv("DEMO_PASSWORD", "Password123")
+    with app.app_context():
+        assert User.query.filter_by(email="guide@seahorse.test").first() is None
+        entry.sync_demo_passwords()
+        assert User.query.filter_by(email="admin@seahorse.test").first().check_password("Seahorse@2026")
+        guide = User.query.filter_by(email="guide@seahorse.test").first()
+        assert guide.role == "guide" and guide.check_password("Password123")
+        assert User.query.filter_by(email="customer@seahorse.test").first().role == "customer"
+
+
+def test_reset_admin_password_flag(app, monkeypatch):
+    import app as entry
+    monkeypatch.setattr(entry, "app", app)
+    monkeypatch.setenv("ADMIN_EMAIL", "owner@example.com")
+    monkeypatch.setenv("ADMIN_PASSWORD", "FirstPassword2026")
+    with app.app_context():
+        entry.ensure_admin()
+        monkeypatch.setenv("ADMIN_PASSWORD", "SecondPassword2026")
+        entry.ensure_admin()                       # without the flag the first password stays
+        assert User.query.filter_by(email="owner@example.com").first().check_password("FirstPassword2026")
+        monkeypatch.setenv("RESET_ADMIN_PASSWORD", "true")
+        entry.ensure_admin()
+        assert User.query.filter_by(email="owner@example.com").first().check_password("SecondPassword2026")

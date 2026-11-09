@@ -11,6 +11,32 @@ from .models import ROLES, AddOn, Experience, Horse, Slot, User, Waiver, utcnow
 
 
 def register_cli(app: Flask) -> None:
+    @app.cli.command("bst")
+    @click.argument("values", nargs=-1, required=True)
+    @click.option("--search", "find", default=None, help="A value to search for.")
+    def bst_cmd(values, find):
+        """Build a binary search tree from VALUES (in order) and print traversals, e.g.  flask --app app bst 50 30 70 --search 60"""
+        from .structures import BinarySearchTree, parse_keys
+        keys = parse_keys(" ".join(values))
+        tree = BinarySearchTree()
+        for k in keys:
+            path = tree.insert(k)
+            where = ("root" if not path else "duplicate (not added)" if k == path[-1]
+                     else f"{'left' if k < path[-1] else 'right'} of {path[-1]}")
+            click.echo(f"insert {k!s:>6}: " + " -> ".join(map(str, path)) + (" => " if path else "") + where)
+        click.echo(f"\nroot={tree.root.key}  nodes={len(tree)}  height={tree.height()}  leaves={tree.leaves()}"
+                   + ("  (SKEWED)" if tree.is_skewed() else ""))
+        for depth, level in enumerate(tree.level_order()):
+            click.echo(f"  level {depth}: {level}")
+        click.echo(f"in-order:   {tree.inorder()}")
+        click.echo(f"pre-order:  {tree.preorder()}")
+        click.echo(f"post-order: {tree.postorder()}")
+        if find is not None:
+            target = parse_keys(find, limit=1)[0]
+            node, path = tree.search(target)
+            click.echo(f"search {target}: {' -> '.join(map(str, path))} -> {'FOUND' if node else 'NOT FOUND'}"
+                       f" ({len(path)} comparisons)")
+
     @app.cli.command("seed")
     @click.option("--demo-prices", is_flag=True, help="Fill example prices so the estimator can be demonstrated. "
                   "Replace them with the business's real prices before launch.")

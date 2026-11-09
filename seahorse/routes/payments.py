@@ -10,6 +10,7 @@ from flask import Blueprint, abort, current_app, flash, g, redirect, render_temp
 from ..extensions import db
 from ..models import Booking, Payment, PaymentEvent, utcnow
 from .. import notify, payfast, paystack
+from ..gateways import get_gateway, site_url as _site
 from ..security import CSRF_EXEMPT, can_view_booking, login_required, rate_limited
 from ..workflow import APPROVED, PROCESSING, payable_reason, record_payment, transition
 
@@ -20,21 +21,6 @@ CSRF_EXEMPT.add("payments.paystack_webhook")  # server-to-server from Paystack; 
 
 def _cfg() -> payfast.PayfastConfig:
     return payfast.config_from(current_app.config)
-
-
-def _site(path: str) -> str:
-    """Where the customer's browser comes back to (the address they are using)."""
-    base = current_app.config.get("PUBLIC_SITE_URL") or request.host_url.rstrip("/")
-    return base + path
-
-
-def _notify_url() -> str:
-    """Where PayFast's servers send the payment notification — must be publicly reachable."""
-    cfg = current_app.config
-    if cfg.get("PAYFAST_NOTIFY_URL"):
-        return cfg["PAYFAST_NOTIFY_URL"]
-    base = cfg.get("PUBLIC_SITE_URL") or cfg.get("TUNNEL_URL") or request.host_url.rstrip("/")
-    return base + url_for("payments.payfast_notify")
 
 
 def notify_reachable() -> bool:
@@ -52,9 +38,10 @@ def pay(ref: str):
     if b is None or not can_view_booking(b):
         abort(404)
     reason = payable_reason(b)
+    gateway = get_gateway(current_app.config)          # a PaystackGateway, PayfastGateway or SimulatorGateway object
     if request.method == "GET":
         return render_template("account/pay.html", b=b, reason=reason, checkout=None, can_confirm=notify_reachable(),
-                               paystack_ready=_paystack_cfg().configured)
+                               paystack_ready=gateway.ready)
     if reason:
         flash(reason, "error")
         return redirect(url_for("booking.view", ref=b.reference))
@@ -62,7 +49,6 @@ def pay(ref: str):
         abort(429)
     amount = b.amount_due_now_cents
     # Re-use an open pending checkout for the same amount instead of creating duplicates.
-    provider = current_app.config["PAYMENT_PROVIDER"]
     payment = (Payment.query.filter_by(booking_id=b.id, status="pending", amount_cents=amount)
                .order_by(Payment.id.desc()).first())
     if payment is None:
@@ -70,22 +56,12 @@ def pay(ref: str):
         kind = ("deposit" if b.payment_mode == "deposit" and b.amount_paid_cents == 0 and b.deposit_cents
                 else ("balance" if b.amount_paid_cents else "full"))
         payment = Payment(booking=b, m_payment_id=f"{b.reference}-P{n}", amount_cents=amount, kind=kind,
-                          provider=provider)
+                          provider=gateway.name)
         db.session.add(payment)
-    payment.provider = provider
+    payment.provider = gateway.name
     db.session.commit()
-    if provider == "paystack":
-        return _paystack_checkout(b, payment)
-    cfg = _cfg()
-    checkout = payfast.build_checkout(
-        cfg, m_payment_id=payment.m_payment_id, amount_cents=payment.amount_cents,
-        item_name=f"Seahorse Ride {b.reference} ({payment.kind})", item_description=b.display_name,
-        customer_name=b.contact_name, email=b.contact_email, booking_ref=b.reference,
-        return_url=_site(url_for("payments.returned", ref=b.reference)),
-        cancel_url=_site(url_for("payments.cancelled", ref=b.reference)),
-        notify_url=_notify_url())
-    return render_template("account/pay.html", b=b, reason=None, checkout=checkout, payment=payment,
-                           can_confirm=notify_reachable())
+    # Polymorphism: one call, and each gateway class runs its own start_checkout (dynamic dispatch).
+    return gateway.start_checkout(b, payment)
 
 
 @bp.route("/booking/<ref>/payment-return")
@@ -179,31 +155,6 @@ def process_itn(pairs, remote_ip: str, server_confirm) -> payfast.ItnResult:
 
 def _paystack_cfg() -> paystack.PaystackConfig:
     return paystack.config_from(current_app.config)
-
-
-def _paystack_checkout(b: Booking, payment: Payment):
-    cfg = _paystack_cfg()
-    if not cfg.configured:
-        current_app.logger.error("PAYMENT_PROVIDER=paystack but PAYSTACK_SECRET_KEY is missing or invalid")
-        flash("Online card payment isn't available right now. Please try again later or contact us.", "error")
-        return redirect(url_for("booking.view", ref=b.reference))
-    reference = paystack.attempt_reference(payment.m_payment_id)
-    try:
-        url = paystack.initialize(
-            cfg, email=b.contact_email, amount_cents=payment.amount_cents, reference=reference,
-            callback_url=_site(url_for("payments.paystack_callback")),
-            cancel_url=_site(url_for("payments.cancelled", ref=b.reference)),
-            metadata={"booking_reference": b.reference, "payment_id": payment.m_payment_id, "kind": payment.kind,
-                      "custom_fields": [{"display_name": "Booking", "variable_name": "booking",
-                                         "value": f"{b.reference} — {b.display_name}"}]})
-    except paystack.PaystackError as exc:
-        db.session.add(PaymentEvent(payment_id=payment.id, outcome="checkout_error", detail=str(exc)[:250],
-                                    remote_ip="(outgoing)"))
-        db.session.commit()
-        flash("We couldn't open the secure payment page just now. Nothing was charged — please try again in a "
-              "minute.", "error")
-        return redirect(url_for("booking.view", ref=b.reference))
-    return redirect(url, code=303)
 
 
 def _apply_paystack(data: dict, remote_ip: str) -> paystack.Result:

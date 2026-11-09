@@ -126,8 +126,35 @@ def _connect(cfg) -> smtplib.SMTP:
         smtp = smtplib.SMTP(host, port, timeout=20)
         smtp.starttls(context=ssl.create_default_context())
     if cfg.get("SMTP_USERNAME"):
-        smtp.login(cfg["SMTP_USERNAME"], cfg.get("SMTP_PASSWORD", ""))
+        password = cfg.get("SMTP_PASSWORD", "")
+        if host.strip().lower() == "smtp.gmail.com":
+            password = password.replace(" ", "")   # Gmail shows app passwords as "abcd efgh ijkl mnop"
+        smtp.login(cfg["SMTP_USERNAME"].strip(), password)
     return smtp
+
+
+def provider(cfg) -> str:
+    """Which email service is set up, in words for the startup message and the admin outbox."""
+    if cfg.get("BREVO_API_KEY"):
+        return "Brevo email API"
+    if cfg.get("SMTP_HOST"):
+        return f"SMTP {cfg['SMTP_HOST']}:{cfg.get('SMTP_PORT') or 587}"
+    return ""
+
+
+def send_test(to: str) -> tuple[bool, str]:
+    """Queue and immediately try to send one test email. Returns (sent?, message for staff)."""
+    cfg = current_app.config
+    if not provider(cfg):
+        return False, "No email service is set up yet (SMTP_* or BREVO_API_KEY), so nothing can be sent."
+    n = queue(to, "Seahorse Ride test email",
+              "This is a test email from Seahorse Ride. If you can read this, emails are working.")
+    db.session.commit()
+    deliver_pending()
+    db.session.refresh(n)
+    if n.status == "sent":
+        return True, f"Test email sent to {to} through {provider(cfg)}."
+    return False, f"Sending failed: {n.last_error or n.status}"
 
 
 # --------------------------------------------------------------------------- message builders

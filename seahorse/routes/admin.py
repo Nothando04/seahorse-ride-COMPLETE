@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
 import requests
-from flask import Blueprint, Response, abort, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, g, redirect, render_template, request, url_for
 from sqlalchemy import func, or_
 
 from ..extensions import db
@@ -656,12 +656,24 @@ def enquiries():
 @staff_required("message")
 def outbox():
     if request.method == "POST":
-        Notification.query.filter(Notification.status == "failed").update({"status": "queued", "attempts": 0})
+        if request.form.get("action") == "test":
+            to = (request.form.get("to") or g.user.email).strip()
+            ok, message = notify.send_test(to)
+            flash(message, "success" if ok else "error")
+            return redirect(url_for("admin.outbox"))
+        # Retry failed emails, and emails only recorded in the last 24 hours (before email was set up).
+        recent = utcnow() - timedelta(hours=24)
+        Notification.query.filter((Notification.status == "failed") |
+                                  ((Notification.status == "logged") & (Notification.created_at >= recent))) \
+            .update({"status": "queued", "attempts": 0}, synchronize_session=False)
         db.session.commit()
         sent = notify.deliver_pending(100)
-        flash(f"Retry complete — {sent} sent.", "success")
+        flash(f"Retry complete — {sent} sent." if notify.provider(current_app.config)
+              else "No email service is set up yet, so the emails were recorded again but not sent.",
+              "success" if sent else "info")
         return redirect(url_for("admin.outbox"))
-    return render_template("admin/outbox.html", items=Notification.query.order_by(Notification.id.desc()).limit(150).all())
+    return render_template("admin/outbox.html", items=Notification.query.order_by(Notification.id.desc()).limit(150).all(),
+                           provider=notify.provider(current_app.config))
 
 
 # --------------------------------------------------------------------------- reviews, gallery, waivers
@@ -1018,3 +1030,42 @@ def settings():
 @staff_required("audit")
 def audit_log():
     return render_template("admin/audit.html", rows=AuditLog.query.order_by(AuditLog.id.desc()).limit(300).all())
+
+
+# --------------------------------------------------------------------------- data structures (BST + BFS)
+
+@bp.route("/data-structures")
+@staff_required()
+def data_structures():
+    """Builds a binary search tree from values typed in (e.g. an examiner's list), searches it and shows the
+    three depth-first traversals; also the real bookings as a BookingTree and a BFS over the status graph."""
+    from ..structures import BinarySearchTree, BookingTree, parse_keys, status_path
+
+    raw = request.args.get("values", "50, 30, 70, 20, 40, 60, 80")
+    keys = parse_keys(raw)
+    tree = BinarySearchTree()
+    trace = [{"key": k, "path": tree.insert(k)} for k in keys]       # insertion order + comparisons made
+    find_raw = request.args.get("find", "").strip()
+    found = path = None
+    if find_raw and keys:
+        target = parse_keys(find_raw, limit=1)
+        if target and type(target[0]) is type(keys[0]):
+            found, path = tree.search(target[0])
+            find_raw = target[0]
+    nodes, edges = tree.layout()
+    stats = {"size": len(tree), "height": tree.height(), "root": tree.root.key if tree.root else None,
+             "leaves": tree.leaves(), "min": tree.minimum(), "max": tree.maximum(), "skewed": tree.is_skewed()}
+
+    # The project's own use: upcoming rides that hold places, as a BST keyed by ride date and time.
+    upcoming = (Booking.query.filter(Booking.status.in_(HOLDS_CAPACITY), Booking.preferred_date >= today()).all())
+    btree = BookingTree.from_bookings(upcoming)
+    week = btree.rides_between(today(), today() + timedelta(days=7))
+    bnodes, bedges = btree.layout()
+
+    s_from = request.args.get("from_status", PENDING)
+    s_to = request.args.get("to_status", REFUNDED)
+    s_path = status_path(s_from, s_to) if s_from in ALL_STATUSES and s_to in ALL_STATUSES else None
+    return render_template("admin/data_structures.html", raw=raw, keys=keys, trace=trace, tree=tree, nodes=nodes,
+                           edges=edges, stats=stats, find=find_raw, found=found, path=path or [], btree=btree,
+                           bnodes=bnodes, bedges=bedges, week=week, statuses=ALL_STATUSES, s_from=s_from, s_to=s_to,
+                           s_path=s_path)

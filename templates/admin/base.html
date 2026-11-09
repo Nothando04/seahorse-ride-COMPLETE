@@ -42,6 +42,7 @@
       {{ nav('admin.settings', 'Settings', 'settings') }}
       <a href="{{ url_for('public.card') }}" target="_blank"><span>Business card & QR ↗</span></a>
       {{ nav('admin.audit_log', 'Audit log', 'audit') }}
+      {{ nav('admin.data_structures', 'Data structures (BST)') }}
       <div class="group">{{ current_user.name }}</div>
       <a href="{{ url_for('public.home') }}">View website ↗</a>
       <form method="post" action="{{ url_for('account.sign_out') }}" style="padding:0 12px">{{ csrf() }}<button class="link-btn" style="color:#d5e6ea">Sign out</button></form>

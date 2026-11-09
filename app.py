@@ -24,8 +24,6 @@ app = create_app()
 DEV_ADMIN_EMAIL = "admin@seahorse.local"
 DEV_ADMIN_PASSWORD = "Seahorse@2026"
 
-DEV_GUIDE_EMAIL = "guide@seahorse.test"
-DEV_GUIDE_PASSWORD = "Password123"
 
 def prepare_database(demo_prices: bool = True) -> None:
     with app.app_context():
@@ -51,37 +49,45 @@ def prepare_database(demo_prices: bool = True) -> None:
         seed_gallery()
         sync_demo_passwords()
         ensure_admin()
-        ensure_guide()
+
+
+DEMO_LOGINS = [  # the accounts listed in the user guide
+    ("admin@seahorse.test", "Sam Admin", "super_admin"),
+    ("guide@seahorse.test", "Gugu Guide", "guide"),
+    ("customer@seahorse.test", "Thandi Mokoena", "customer"),
+]
 
 
 def sync_demo_passwords() -> None:
-    """Keeps the demo logins matching the user guide on every start, even on a permanent database:
-    admin@seahorse.test uses ADMIN_PASSWORD; the other demo accounts (…@seahorse.test) use DEMO_PASSWORD."""
+    """Makes sure the user-guide logins exist and work on every start, on any database (new or old):
+    admin@seahorse.test uses ADMIN_PASSWORD; the other demo accounts (…@seahorse.test) use DEMO_PASSWORD.
+    Missing accounts are created; existing ones get the configured password and role."""
     from seahorse.demo_data import DEMO_STAFF
-    admin_pw = os.environ.get("ADMIN_PASSWORD") or ""
-    demo_pw = os.environ.get("DEMO_PASSWORD") or ""
-    changed = 0
-    for email, _name, role in DEMO_STAFF:
+    production = app.config["APP_ENV"] == "production"
+    admin_pw = os.environ.get("ADMIN_PASSWORD") or ("" if production else DEV_ADMIN_PASSWORD)
+    demo_pw = os.environ.get("DEMO_PASSWORD") or ("" if production else "Password123")
+    wanted = {e: (n, r) for e, n, r in DEMO_STAFF}
+    wanted.update({e: (n, r) for e, n, r in DEMO_LOGINS})
+    changed = []
+    for email, (name, role) in wanted.items():
         password = admin_pw if role == "super_admin" else demo_pw
-        if not password:
-            continue
         user = User.query.filter_by(email=email).first()
-        if user is not None and not user.check_password(password):
+        if user is None:
+            if email not in {e for e, _, _ in DEMO_LOGINS} or not password:
+                continue  # only the three guide logins are created; other demo accounts are only kept in sync
+            user = User(email=email, name=name, role=role, email_verified=True)
+            db.session.add(user)
+        elif not password:
+            continue
+        if user.role != role and email in {e for e, _, _ in DEMO_LOGINS}:
+            user.role = role
+        if not user.password_hash or not user.check_password(password):
             user.set_password(password)
-            changed += 1
+            changed.append(email)
     if changed:
         db.session.commit()
-        print(f"Demo account passwords updated ({changed}).")
+        print("Demo logins ready: " + ", ".join(changed))
 
-def ensure_guide() -> None:
-    """Creates the guide login if it doesn't exist yet."""
-    if User.query.filter_by(email=DEV_GUIDE_EMAIL).first():
-        return
-    guide = User(email=DEV_GUIDE_EMAIL, name="Gugu Guide", role="guide", email_verified=True)
-    guide.set_password(DEV_GUIDE_PASSWORD)
-    db.session.add(guide)
-    db.session.commit()
-    print(f"Guide account created: {DEV_GUIDE_EMAIL} / {DEV_GUIDE_PASSWORD}")
 
 def ensure_admin() -> None:
     """Admins must sign in like everyone else; this makes sure there is always one admin account."""
@@ -89,8 +95,9 @@ def ensure_admin() -> None:
     password = os.environ.get("ADMIN_PASSWORD") or ""
     if email:
         existing = User.query.filter_by(email=email).first()
-        if existing is not None and existing.role == "super_admin":
-            return  # already there — never reset a password the owner may have changed
+        reset = os.environ.get("RESET_ADMIN_PASSWORD", "").strip().lower() in ("1", "true", "yes")
+        if existing is not None and existing.role == "super_admin" and not (reset and password):
+            return  # already there — never reset a password the owner may have changed (unless asked to)
     elif User.query.filter_by(role="super_admin").count():
         return
     if app.config["APP_ENV"] == "production" and (not email or len(password) < 10):
@@ -169,6 +176,8 @@ if __name__ == "__main__":
     else:
         mode = "SANDBOX (test cards, no real money)" if app.config["PAYFAST_SANDBOX"] else "LIVE (real money)"
     print(f"  Payments: {app.config['PAYMENT_PROVIDER'].upper()} — {mode}")
+    from seahorse.notify import provider as email_provider
+    print(f"  Emails:   {email_provider(app.config) or 'NOT SET UP — only recorded in Admin → Email outbox (add SMTP_* or BREVO_API_KEY to .env)'}")
     if public:
         print_share_box(public)
     print(f"  Seahorse Ride is running → http://127.0.0.1:{port}   (Ctrl+C to stop)\n")

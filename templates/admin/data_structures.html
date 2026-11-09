@@ -1,0 +1,108 @@
+{% extends "admin/base.html" %}
+{% block title %}Data structures{% endblock %}
+{% macro draw(nodes, edges, highlight=[], gap=64, r=20, font=13) %}
+  {% set w = (nodes|length * gap + 40) if nodes else 200 %}
+  {% set depth = (nodes|map(attribute='y')|max if nodes else 0) %}
+  {% set h = depth * 72 + 2 * r + 30 %}
+  <div class="tree-wrap">
+  <svg viewBox="0 0 {{ w }} {{ h }}" width="100%" style="max-width:{{ w }}px" role="img" aria-label="Binary search tree diagram" class="tree-svg">
+    {% for e in edges %}
+      <line x1="{{ 20 + e.from.x * gap + gap / 2 }}" y1="{{ r + 12 + e.from.y * 72 }}" x2="{{ 20 + e.to.x * gap + gap / 2 }}" y2="{{ r + 12 + e.to.y * 72 }}"
+            stroke="{{ '#e07a3f' if e.from.key in highlight and e.to.key in highlight else '#9bb7bf' }}" stroke-width="{{ 3 if e.from.key in highlight and e.to.key in highlight else 1.5 }}"/>
+    {% endfor %}
+    {% for n in nodes %}
+      {% set cx = 20 + n.x * gap + gap / 2 %}{% set cy = r + 12 + n.y * 72 %}
+      {% if gap > 80 %}
+        <rect x="{{ cx - gap / 2 + 6 }}" y="{{ cy - r }}" width="{{ gap - 12 }}" height="{{ 2 * r }}" rx="10"
+              fill="{{ '#fde3d2' if n.key in highlight else ('#e6f2f4' if n.leaf else '#ffffff') }}" stroke="{{ '#e07a3f' if n.key in highlight else '#0e4a5c' }}" stroke-width="1.5"/>
+      {% else %}
+        <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ r }}" fill="{{ '#fde3d2' if n.key in highlight else ('#e6f2f4' if n.leaf else '#ffffff') }}"
+                stroke="{{ '#e07a3f' if n.key in highlight else '#0e4a5c' }}" stroke-width="{{ 3 if n.key in highlight else 1.5 }}"/>
+      {% endif %}
+      <text x="{{ cx }}" y="{{ cy + font / 3 }}" text-anchor="middle" font-size="{{ font }}" font-weight="600" fill="#0e2a33">{{ n.label }}</text>
+      {% if n.count > 1 %}<text x="{{ cx }}" y="{{ cy + r + 13 }}" text-anchor="middle" font-size="11" fill="#55707a">{{ n.count }} bookings</text>{% endif %}
+    {% endfor %}
+  </svg></div>
+{% endmacro %}
+{% block content %}
+<div class="admin-top"><h1>Data structures: binary search tree &amp; status graph</h1></div>
+<p class="muted">Type any list of whole numbers (or words) to build a binary search tree (BST) in the order given. Each value is compared with the root and goes <strong>left if smaller, right if larger</strong>. Code: <code>seahorse/structures.py</code>.</p>
+
+<div class="card">
+  <form class="grid g2" method="get" style="align-items:end">
+    <label>Values to insert, in order<input name="values" value="{{ raw }}" placeholder="50, 30, 70, 20, 40, 60, 80"></label>
+    <label>Value to search for<input name="find" value="{{ find }}" placeholder="e.g. 60"></label>
+    <div class="row"><button class="btn btn-ocean btn-sm" data-keep>Build tree</button>
+      <a class="btn btn-ghost btn-sm" href="?values=10, 20, 30, 40, 50">Sorted input (skewed)</a>
+      <a class="btn btn-ghost btn-sm" href="?values=45, 25, 65, 15, 35, 55, 75, 30&find=30">Another example</a></div>
+  </form>
+</div>
+
+{% if keys %}
+<div class="grid g2" style="margin-top:18px">
+  <div class="card">
+    <h3>The tree</h3>
+    {{ draw(nodes, edges, path) }}
+    <p class="small muted">Orange = search path. Light blue = leaf (no children).</p>
+  </div>
+  <div class="card">
+    <h3>Facts</h3>
+    <dl class="kv">
+      <dt>Root</dt><dd>{{ stats.root }}</dd>
+      <dt>Nodes (n)</dt><dd>{{ stats.size }}{% if keys|length != stats.size %} <span class="small muted">({{ keys|length - stats.size }} duplicate value(s) not added twice)</span>{% endif %}</dd>
+      <dt>Height</dt><dd>{{ stats.height }} <span class="small muted">(edges on the longest root-to-leaf path)</span></dd>
+      <dt>Leaves</dt><dd>{{ stats.leaves|join(', ') }}</dd>
+      <dt>Smallest / largest</dt><dd>{{ stats.min }} / {{ stats.max }} <span class="small muted">(keep going left / right)</span></dd>
+      <dt>Shape</dt><dd>{% if stats.skewed %}<span class="badge red">Skewed — behaves like a linked list, search is O(n)</span>{% else %}<span class="badge green">Branching — search is O(height)</span>{% endif %}</dd>
+    </dl>
+    {% if find != '' %}
+    <h3 style="margin-top:14px">Search for {{ find }}</h3>
+    <p><strong>{{ path|join(' → ') }}</strong> — {% if found %}<span class="badge green">found</span> at depth {{ path|length - 1 }} after {{ path|length }} comparison(s){% if tree.parent_of(find) is not none %}; parent = {{ tree.parent_of(find) }}{% endif %}{% else %}<span class="badge red">not found</span> after {{ path|length }} comparison(s) — reached an empty child{% endif %}.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:18px">
+  <div class="card">
+    <h3>Traversals</h3>
+    <table><tbody>
+      <tr><th>In-order (left, node, right)</th><td>{{ tree.inorder()|join(', ') }} <span class="small muted">— sorted order</span></td></tr>
+      <tr><th>Pre-order (node, left, right)</th><td>{{ tree.preorder()|join(', ') }} <span class="small muted">— root first</span></td></tr>
+      <tr><th>Post-order (left, right, node)</th><td>{{ tree.postorder()|join(', ') }} <span class="small muted">— root last</span></td></tr>
+      <tr><th>Level-order (breadth-first)</th><td>{% for level in tree.level_order() %}<span class="small muted">L{{ loop.index0 }}:</span> {{ level|join(', ') }}{% if not loop.last %} &nbsp;|&nbsp; {% endif %}{% endfor %}</td></tr>
+    </tbody></table>
+  </div>
+  <div class="card">
+    <h3>Insertion trace</h3>
+    <table><thead><tr><th>#</th><th>Insert</th><th>Compared with</th><th>Placed</th></tr></thead><tbody>
+    {% for t in trace %}
+      <tr><td>{{ loop.index }}</td><td><strong>{{ t.key }}</strong></td><td>{{ t.path|join(' → ') or '—' }}</td>
+        <td class="small">{% if not t.path %}root{% elif t.key == t.path[-1] %}duplicate{% elif t.key < t.path[-1] %}left of {{ t.path[-1] }}{% else %}right of {{ t.path[-1] }}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+</div>
+{% endif %}
+
+<h2 style="margin-top:30px">In the system: upcoming rides as a BookingTree</h2>
+<p class="muted">Bookings that hold places (approved or confirmed), keyed by ride date and time. <code>BookingTree</code> inherits <code>BinarySearchTree</code> and overrides <code>label()</code>. In-order traversal lists the rides in date order; <code>rides_between()</code> finds a date range while skipping subtrees that are out of range.</p>
+<div class="card">
+  {% if bnodes %}
+    {{ draw(bnodes, bedges, [], 118, 18, 12) }}
+    <h3 style="margin-top:12px">Next 7 days ({{ week|length }})</h3>
+    {% for b in week %}<p class="small" style="margin:4px 0"><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}">{{ b.reference }}</a> · {{ b.slot.label if b.slot else b.preferred_date }} · {{ b.contact_name }} · {{ b.riders }} rider(s) · {{ b.status }}</p>{% else %}<p class="small muted">No rides in the next 7 days.</p>{% endfor %}
+  {% else %}<p class="muted">No upcoming approved or confirmed rides yet.</p>{% endif %}
+</div>
+
+<h2 style="margin-top:30px">In the system: shortest path between booking statuses (BFS)</h2>
+<p class="muted">The booking rules <code>TRANSITIONS</code> are a graph stored as a dictionary of sets (an adjacency list). Breadth-first search with a FIFO queue finds the fewest status changes between two statuses.</p>
+<div class="card">
+  <form class="row" method="get">
+    <input type="hidden" name="values" value="{{ raw }}"><input type="hidden" name="find" value="{{ find }}">
+    <label>From<select name="from_status">{% for s in statuses %}<option {{ 'selected' if s == s_from }}>{{ s }}</option>{% endfor %}</select></label>
+    <label>To<select name="to_status">{% for s in statuses %}<option {{ 'selected' if s == s_to }}>{{ s }}</option>{% endfor %}</select></label>
+    <button class="btn btn-ocean btn-sm" data-keep>Find path</button>
+  </form>
+  <p style="margin-top:12px">{% if s_path %}<strong>{{ s_path|join(' → ') }}</strong> <span class="small muted">({{ s_path|length - 1 }} step(s))</span>{% else %}<span class="badge red">No path</span> — the rules never allow a booking to go from “{{ s_from }}” to “{{ s_to }}”.{% endif %}</p>
+</div>
+{% endblock %}
