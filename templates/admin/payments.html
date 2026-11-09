@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Payments & refunds</h1>
+  <div class="row">{% for s in ['', 'paid', 'pending', 'failed', 'cancelled'] %}<a class="btn btn-sm {{ 'btn-ocean' if status == s else 'btn-ghost' }}" href="?status={{ s }}">{{ s or 'All' }}</a>{% endfor %}</div></div>
+<div class="card flat" style="margin-bottom:18px">
+  <h3 style="margin-bottom:8px">Payment gateway</h3>
+  <dl class="kv">
+    {% if gateway.provider == 'paystack' %}
+    <dt>Provider</dt><dd>Paystack — card checkout (card number, expiry, CVV on Paystack's page)</dd>
+    <dt>Mode</dt><dd>{% if gateway.paystack_key == 'sk_test_' %}<span class="badge amber">Test mode — test cards, no real money</span>{% elif gateway.paystack_key == 'sk_live_' %}<span class="badge green">Live</span>{% else %}<span class="badge red">Not set up — add PAYSTACK_SECRET_KEY</span>{% endif %}</dd>
+    <dt>Confirmation</dt><dd>Verified with Paystack's API when the customer returns, and by the signed webhook</dd>
+    <dt>Webhook URL</dt><dd>{{ gateway.paystack_webhook }} <span class="small muted">(paste into Paystack → Settings → API Keys &amp; Webhooks)</span></dd>
+    {% else %}
+    <dt>Provider</dt><dd>{{ 'PayFast' if gateway.provider == 'payfast' else 'Offline simulator (development only)' }}</dd>
+    <dt>Mode</dt><dd>{% if gateway.sandbox %}<span class="badge amber">Sandbox — test payments, no real money</span>{% else %}<span class="badge green">Live</span>{% endif %}</dd>
+    <dt>Merchant ID</dt><dd>{{ gateway.merchant or '— not set —' }}{% if gateway.merchant == '10000100' %} <span class="small muted">(PayFast's public test merchant)</span>{% endif %}</dd>
+    <dt>Notification (ITN) URL</dt><dd>{{ gateway.notify }} {% if gateway.reachable %}<span class="badge green">reachable by PayFast</span>{% else %}<span class="badge red">not public — payments won't auto-confirm</span>{% endif %}</dd>
+    {% endif %}
+  </dl>
+</div>
+<div class="table-wrap"><table><thead><tr><th>Payment ref</th><th>Booking</th><th>Provider</th><th>Type</th><th>Amount</th><th>Status</th><th>Gateway ID</th><th>Created</th><th>Paid</th></tr></thead><tbody>
+{% for p in payments %}<tr><td>{{ p.m_payment_id }}</td><td><a href="{{ url_for('admin.request_detail', booking_id=p.booking_id) }}">{{ p.booking.reference }}</a></td><td>{{ p.provider }}</td><td>{{ p.kind }}</td><td>{{ p.amount_cents|money }}</td><td><span class="badge {{ {'paid':'green','pending':'amber','failed':'red'}.get(p.status, 'grey') }}">{{ p.status }}</span></td><td class="small">{{ p.gateway_payment_id or '—' }}{% if p.method_note %}<br>{{ p.method_note }}{% endif %}</td><td class="small">{{ p.created_at|dt }}</td><td class="small">{{ p.paid_at|dt }}</td></tr>{% else %}<tr><td colspan="9" class="muted">No payments.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2 style="margin-top:30px;font-size:1.5rem">Refunds</h2>
+<div class="table-wrap"><table><thead><tr><th>Booking</th><th>Amount</th><th>Reason</th><th>Status</th><th>Created</th></tr></thead><tbody>
+{% for r in refunds %}<tr><td><a href="{{ url_for('admin.request_detail', booking_id=r.booking_id) }}">{{ r.booking.reference }}</a></td><td>{{ r.amount_cents|money }}</td><td>{{ r.reason }}</td><td>{{ r.status }}</td><td>{{ r.created_at|dt }}</td></tr>{% else %}<tr><td colspan="5" class="muted">No refunds.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2 style="margin-top:30px;font-size:1.5rem">Gateway notifications (ITN log)</h2>
+<p class="small muted">Every gateway notification and verification is logged, including rejected ones (bad signature, unknown reference, amount mismatch, duplicates).</p>
+<div class="table-wrap"><table><thead><tr><th>Time</th><th>Outcome</th><th>Detail</th><th>From</th></tr></thead><tbody>
+{% for e in events %}<tr><td class="small">{{ e.created_at|dt }}</td><td><span class="badge {{ 'green' if e.outcome.startswith('complete') else ('red' if e.outcome.startswith('rejected') else 'grey') }}">{{ e.outcome }}</span></td><td class="small">{{ e.detail }}</td><td class="small">{{ e.remote_ip }}</td></tr>{% else %}<tr><td colspan="4" class="muted">No notifications yet.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

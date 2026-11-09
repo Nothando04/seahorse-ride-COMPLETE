@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Availability{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Availability calendar</h1>
+  <div class="row"><a class="btn btn-ghost btn-sm" href="?week={{ prev_week.isoformat() }}">← Previous</a><strong>Week of {{ week_start.strftime('%d %b %Y') }}</strong><a class="btn btn-ghost btn-sm" href="?week={{ next_week.isoformat() }}">Next →</a></div></div>
+<p class="small muted">Capacity = maximum riders per session. Approved (awaiting payment) and confirmed bookings use capacity; pending requests don't (shown as "requests"). Approvals and payments re-check capacity inside a database lock, so the same places can't be sold twice.</p>
+<div class="cal">
+  {% for d in days %}
+  <div class="day">
+    <strong>{{ d.strftime('%a %d %b') }}</strong>{% if pending_by_day[d] %}<br><a class="pill" href="{{ url_for('admin.requests_list', status='open', **{'from': d.isoformat(), 'to': d.isoformat()}) }}">{{ pending_by_day[d] }} request(s)</a>{% endif %}
+    {% for row in grid[d] %}{% set s = row.slot %}
+    <div class="slot {{ 'blocked' if s.status != 'open' else ('full' if row.booked >= s.capacity) }}">
+      <div class="row between"><strong>{{ s.start_time }}–{{ s.end_time }}</strong><span>{{ row.booked }}/{{ s.capacity }}</span></div>
+      <div class="meter"><span style="width:{{ [100, (row.booked / s.capacity * 100)|round if s.capacity else 100]|min }}%"></span></div>
+      {% if s.status != 'open' %}<div class="small">⛔ {{ s.block_reason }}</div>{% endif %}
+      {% for b in row.bookings %}<div class="small"><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}">{{ b.reference }}</a> · {{ b.riders }}{% if b.status != 'Confirmed — Paid' %} <span class="muted">({{ b.status.split(' ')[0] }})</span>{% endif %}</div>{% endfor %}
+      <details><summary class="small" style="cursor:pointer">Edit</summary>
+        <form method="post" class="row" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="week" value="{{ week_start.isoformat() }}"><input type="hidden" name="slot_id" value="{{ s.id }}"><input type="hidden" name="action" value="update"><input type="number" name="capacity" value="{{ s.capacity }}" min="0" max="100" style="width:80px;min-height:34px;padding:4px 8px"><button class="btn btn-ocean btn-sm" data-keep>Save</button></form>
+        {% if s.status == 'open' %}
+        <form method="post" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="week" value="{{ week_start.isoformat() }}"><input type="hidden" name="slot_id" value="{{ s.id }}"><input type="hidden" name="action" value="block"><input name="reason" placeholder="Reason (weather, private event, horse rest…)" style="min-height:34px;padding:4px 8px"><button class="btn btn-ghost btn-sm" style="margin-top:4px" data-keep>Block</button></form>
+        {% else %}
+        <form method="post" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="week" value="{{ week_start.isoformat() }}"><input type="hidden" name="slot_id" value="{{ s.id }}"><input type="hidden" name="action" value="unblock"><button class="btn btn-ghost btn-sm" data-keep>Reopen</button></form>
+        {% endif %}
+        <form method="post" style="margin-top:6px">{{ csrf() }}<input type="hidden" name="week" value="{{ week_start.isoformat() }}"><input type="hidden" name="slot_id" value="{{ s.id }}"><input type="hidden" name="action" value="delete"><button class="link-btn small" data-confirm="Delete this session?">Delete</button></form>
+      </details>
+    </div>
+    {% else %}<p class="small muted">No sessions</p>{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid g2" style="margin-top:24px">
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="bulk_create"><input type="hidden" name="week" value="{{ week_start.isoformat() }}">
+    <h3>Create sessions (seasonal schedule)</h3>
+    <div class="form-grid"><div class="field"><label for="start">From</label><input id="start" type="date" name="start" required></div><div class="field"><label for="end">To</label><input id="end" type="date" name="end" required></div></div>
+    <div class="field"><label for="times">Session times</label><input id="times" name="times" value="08:00-09:30, 10:30-12:00, 16:30-18:00" required><div class="hint">Comma-separated start-end. Leave buffer time between sessions for horse rest.</div></div>
+    <div class="field"><label for="capacity">Max riders per session</label><input id="capacity" type="number" name="capacity" value="8" min="1" max="100" required></div>
+    <label>Days</label><div class="row">{% for n, l in [(0,'Mon'),(1,'Tue'),(2,'Wed'),(3,'Thu'),(4,'Fri'),(5,'Sat'),(6,'Sun')] %}<label class="checkbox small"><input type="checkbox" name="weekdays" value="{{ n }}" checked> {{ l }}</label>{% endfor %}</div>
+    <button class="btn btn-ocean" style="margin-top:12px">Create sessions</button>
+  </form>
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="block_day"><input type="hidden" name="week" value="{{ week_start.isoformat() }}">
+    <h3>Close a whole day</h3>
+    <p class="small muted">Weather closure, private event, maintenance or a rest day for the horses. Existing bookings stay — use Weather & safety to notify them and reschedule.</p>
+    <div class="field"><label for="day">Date</label><input id="day" type="date" name="day" required></div>
+    <div class="field"><label for="reason">Reason</label><input id="reason" name="reason" value="Weather closure"></div>
+    <button class="btn btn-danger" data-confirm="Block every session on this day?">Block day</button>
+  </form>
+</div>
+{% endblock %}

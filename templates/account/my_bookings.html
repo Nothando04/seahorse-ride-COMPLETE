@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import badge, csrf %}
+{% block title %}My bookings — {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:40px"><div class="container">
+  <div class="row between"><h1 style="font-size:2.3rem;margin:0">Hi {{ current_user.name.split(' ')[0] }}</h1>
+    <div class="row"><a class="btn btn-ghost btn-sm" href="{{ url_for('account.profile') }}">Profile & privacy</a>
+    <form method="post" action="{{ url_for('account.sign_out') }}">{{ csrf() }}<button class="btn btn-ghost btn-sm">Sign out</button></form></div></div>
+  {% if not current_user.email_verified %}
+  <div class="flash info row between">Please confirm your email address to link earlier guest bookings and secure your account.
+    <form method="post" action="{{ url_for('account.resend_verification') }}">{{ csrf() }}<button class="btn btn-ocean btn-sm">Resend email</button></form></div>
+  {% endif %}
+  {% set upcoming = bookings|selectattr('status', 'in', ['Pending Admin Approval','Awaiting Customer Information','Changes Proposed','Approved — Awaiting Payment','Payment Processing','Confirmed — Paid','Rescheduling Requested','Rescheduled'])|list %}
+  <h2 style="margin-top:30px">Current</h2>
+  <div class="grid g2">
+    {% for b in upcoming %}
+    <a class="card" href="{{ url_for('booking.view', ref=b.reference) }}" style="text-decoration:none;color:inherit">
+      <div class="row between"><strong>{{ b.reference }}</strong>{{ badge(b.status) }}</div>
+      <h3 style="margin:10px 0 4px">{{ b.display_name }}</h3>
+      <p class="muted small" style="margin:0">{{ b.slot.label if b.slot else b.preferred_date.strftime('%a %d %b %Y') }} · {{ b.riders }} rider(s)</p>
+      {% if b.status == 'Approved — Awaiting Payment' %}<p style="margin:10px 0 0;color:var(--sunset-600);font-weight:700">Pay {{ b.amount_due_now_cents|money }} by {{ b.payment_deadline|dt }}</p>{% endif %}
+      {% set unread = b.messages|selectattr('sender', 'equalto', 'admin')|rejectattr('read_by_customer')|rejectattr('internal')|list %}
+      {% if unread %}<span class="pill" style="margin-top:10px">{{ unread|length }} new message(s)</span>{% endif %}
+    </a>
+    {% else %}<div class="card flat"><p class="muted" style="margin:0">No current bookings. <a href="{{ url_for('booking.book') }}">Book a ride</a>.</p></div>{% endfor %}
+  </div>
+  {% set past = bookings|reject('in', upcoming)|list %}
+  {% if past %}
+  <h2 style="margin-top:40px">Past & closed</h2>
+  <div class="table-wrap"><table><thead><tr><th>Reference</th><th>Experience</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for b in past %}<tr><td>{{ b.reference }}</td><td>{{ b.display_name }}</td><td>{{ b.preferred_date.strftime('%d %b %Y') }}</td><td>{{ badge(b.status) }}</td><td><a href="{{ url_for('booking.view', ref=b.reference) }}">Open</a></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% endif %}
+</div></section>
+{% endblock %}

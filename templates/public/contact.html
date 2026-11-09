@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, page_hero %}
+{% block title %}Contact Us — {{ site.business_name }}{% endblock %}
+{% block content %}
+{{ page_hero("Contact us", "We'd love to hear from you", "Questions about rides, packages or events? Send us a message and we'll reply by email.") }}
+<section class="section" style="padding-top:36px">
+  <div class="container split">
+    <form method="post" class="card">
+      {{ csrf() }}
+      <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <div class="form-grid">
+        {{ field(form, 'name', 'Your name', attrs='autocomplete="name"') }}
+        {{ field(form, 'email', 'Email', 'email', attrs='autocomplete="email"') }}
+        {{ field(form, 'phone', 'Phone', 'tel', required=false) }}
+        {{ field(form, 'subject', 'Subject') }}
+      </div>
+      {{ field(form, 'message', 'Message', 'textarea') }}
+      <button class="btn btn-primary">Send message</button>
+      <p class="small muted" style="margin:12px 0 0">Already have a booking? Message us from your <a href="{{ url_for('account.my_bookings') }}">booking page</a> so everything stays in one thread.</p>
+    </form>
+    <aside class="stack">
+      <div class="card flat">
+        <h3>Get in touch</h3>
+        <ul class="check-list">
+          {% if site.contact_phone %}<li>Call: <a href="tel:{{ site.contact_phone|replace(' ', '') }}">{{ site.contact_phone }}</a></li>{% endif %}
+          {% if site.contact_email %}<li>Email: <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a></li>{% endif %}
+          {% if site.whatsapp_number %}<li><a href="https://wa.me/{{ site.whatsapp_number }}" rel="noopener">Chat on WhatsApp</a></li>{% endif %}
+          {% if site.operating_hours %}<li>Hours: {{ site.operating_hours }}</li>{% endif %}
+          {% if site.meeting_point %}<li>Meeting point: {{ site.meeting_point }}</li>{% endif %}
+          {% if site.address %}<li>{{ site.address }}</li>{% endif %}
+          {% if not (site.contact_phone or site.contact_email or site.whatsapp_number) %}<li>Use the form and we'll reply by email.</li>{% endif %}
+        </ul>
+      </div>
+      <div>{% for q, a in faqs[:4] %}<details class="faq"><summary>{{ q }}</summary><p>{{ a }}</p></details>{% endfor %}</div>
+    </aside>
+  </div>
+</section>
+{% endblock %}

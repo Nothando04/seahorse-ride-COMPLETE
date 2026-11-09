@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, art, icon %}
+{% block title %}{{ 'Staff sign-in' if staff else 'Sign in' }} — {{ site.business_name }}{% endblock %}
+{% block content %}
+{% set img = photo('auth') %}
+<section class="auth {{ 'staff' if staff }}">
+  <div class="visual">
+    {% if img %}<img src="{{ img }}" alt="">{% else %}{{ art(3) }}{% endif %}
+    <div>
+      {% if staff %}
+        <span class="kicker">Staff area</span><h2>Team sign-in</h2>
+        <p>Individual staff accounts only. Every sign-in and staff action is recorded in the audit log.</p>
+      {% else %}
+        <span class="kicker">Welcome back</span><h2>Your rides, all in one place.</h2>
+        <p>See your requests, approved prices, payments, receipts and messages with our team.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="panel"><div>
+    <img class="auth-logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt="{{ site.business_name }} logo" width="88" height="88">
+    {% if not staff %}
+    <div class="tabs"><a class="on" href="{{ url_for('account.sign_in', next=request.args.get('next')) }}">Sign in</a><a href="{{ url_for('account.sign_up', next=request.args.get('next')) }}">Create account</a></div>
+    {% endif %}
+    <h1 style="font-size:2.2rem">{{ 'Staff sign-in' if staff else 'Sign in' }}</h1>
+    <p class="muted">{{ 'Use the email and password your administrator gave you.' if staff else 'You need an account to book a ride or event.' }}</p>
+    <form method="post">
+      {{ csrf() }}<input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+      {{ field(form, 'email', 'Email', 'email', attrs='autocomplete="username" autofocus') }}
+      <div class="field {% if form.errors.get('password') %}has-error{% endif %}">
+        <label for="password">Password</label><input id="password" type="password" name="password" required autocomplete="current-password">
+        {% if form.errors.get('password') %}<div class="error-text">{{ form.errors.password }}</div>{% endif %}
+      </div>
+      <button class="btn {{ 'btn-ocean' if staff else 'btn-primary' }} btn-block">{{ icon('lock') }} Sign in</button>
+    </form>
+    <p class="small" style="margin:16px 0 0"><a href="{{ url_for('account.forgot_password') }}">Forgot password?</a>
+      {% if staff %}{% else %} · New here? <a href="{{ url_for('account.sign_up', next=request.args.get('next')) }}">Create an account</a>{% endif %}</p>
+  </div></div>
+</section>
+{% endblock %}

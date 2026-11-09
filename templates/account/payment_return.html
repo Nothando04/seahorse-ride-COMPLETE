@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Payment received? — {{ b.reference }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="section"><div class="narrow center" style="max-width:560px">
+  <span class="eyebrow">Booking {{ b.reference }}</span>
+  {% if b.status == 'Confirmed — Paid' or b.amount_paid_cents %}
+    <h1>Payment verified 🎉</h1>
+    <p class="muted">Your booking is <strong>{{ b.status }}</strong>. A confirmation email is on its way.</p>
+    <a class="btn btn-primary" href="{{ url_for('booking.view', ref=b.reference) }}">View booking & sign waivers</a>
+  {% else %}
+    <h1>Checking your payment…</h1>
+    <p class="muted" data-poll-status="{{ url_for('payments.status_json', ref=b.reference) }}" data-paid-before="{{ b.amount_paid_cents }}" data-done="{{ url_for('payments.returned', ref=b.reference) }}">We're waiting for {{ gateway_name }} to confirm the payment directly with us. This usually takes a few seconds.</p>
+    <a class="btn btn-ghost" href="{{ url_for('booking.view', ref=b.reference) }}">Back to booking</a>
+  {% endif %}
+</div></section>
+{% endblock %}

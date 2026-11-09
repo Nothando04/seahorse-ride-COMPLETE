@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Staff{% endblock %} — {{ site.business_name }} admin</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+</head>
+<body class="admin-body">
+{% from "partials/macros.html" import csrf %}
+{% set ep = request.endpoint or '' %}
+{% macro nav(endpoint, label, perm=None, count=0) %}{% if not perm or current_user.can(perm) %}<a href="{{ url_for(endpoint) }}" class="{{ 'active' if ep == endpoint or (endpoint == 'admin.requests_list' and ep == 'admin.request_detail') }}"><span>{{ label }}</span>{% if count %}<span class="count">{{ count }}</span>{% endif %}</a>{% endif %}{% endmacro %}
+<div class="admin-mobile-toggle"><strong>{{ site.business_name }} · Staff</strong><button data-toggle="admin-side" aria-controls="admin-side">Menu</button></div>
+<div class="admin-shell">
+  <aside class="admin-side" id="admin-side">
+    <a class="brand" href="{{ url_for('admin.dashboard') }}"><img class="logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt="" width="52" height="52">Staff</a>
+    <nav aria-label="Staff">
+      {{ nav('admin.dashboard', 'Dashboard') }}
+      {{ nav('admin.check_in', "Today's rides & check-in", 'check_in') }}
+      <div class="group">Bookings</div>
+      {{ nav('admin.requests_list', 'Requests & bookings', 'manage_requests') }}
+      {{ nav('admin.availability', 'Availability calendar', 'manage_availability') }}
+      {{ nav('admin.messages', 'Messages', 'message', admin_unread) }}
+      {{ nav('admin.enquiries', 'Enquiries', 'message') }}
+      {{ nav('admin.payments', 'Payments & refunds', 'reports') }}
+      <div class="group">Operations</div>
+      {{ nav('admin.operations', 'Weather & safety', 'weather') }}
+      {{ nav('admin.horses', 'Horses', 'manage_horses') }}
+      {{ nav('admin.waivers', 'Waivers', 'waivers') }}
+      <div class="group">Content</div>
+      {{ nav('admin.packages', 'Packages & pricing', 'manage_packages') }}
+      {{ nav('admin.gallery', 'Gallery & hero photo', 'gallery') }}
+      {{ nav('admin.reviews', 'Reviews', 'reviews') }}
+      <div class="group">Business</div>
+      {{ nav('admin.reports', 'Reports & exports', 'reports') }}
+      {{ nav('admin.outbox', 'Email outbox', 'message') }}
+      {{ nav('admin.users', 'Users & roles', 'users') }}
+      {{ nav('admin.settings', 'Settings', 'settings') }}
+      <a href="{{ url_for('public.card') }}" target="_blank"><span>Business card & QR ↗</span></a>
+      {{ nav('admin.audit_log', 'Audit log', 'audit') }}
+      <div class="group">{{ current_user.name }}</div>
+      <a href="{{ url_for('public.home') }}">View website ↗</a>
+      <form method="post" action="{{ url_for('account.sign_out') }}" style="padding:0 12px">{{ csrf() }}<button class="link-btn" style="color:#d5e6ea">Sign out</button></form>
+      <p class="small" style="padding:0 12px;color:#86a9b3">{{ current_user.role_label }}</p>
+    </nav>
+  </aside>
+  <main class="admin-main" id="main">
+    {% if site.ops_status != 'normal' %}<div class="flash warning">Operations: <strong>{{ ops_label }}</strong>{% if site.ops_message %} — {{ site.ops_message }}{% endif %}</div>{% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash {{ cat }}" role="status">{{ msg }}</div>{% endfor %}{% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+</body>
+</html>

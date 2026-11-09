@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Horses{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Horses</h1></div>
+<div class="herd" style="margin-bottom:20px">{% for t in horse_types() %}<div class="type {{ t.key }}"><div class="n" style="font-size:2rem">{{ t.available }} <small>of {{ t.total }} available</small></div><h3>{{ t.label }}</h3></div>{% endfor %}</div>
+<p class="small muted">Customers see these numbers on the website and when choosing a horse type. Horses marked resting, maintenance or retired aren't counted.</p>
+<div class="split">
+  <div class="table-wrap"><table><thead><tr><th>Horse</th><th>Type</th><th>Suitable for</th><th>Max weight</th><th>Status</th><th>Public</th><th></th></tr></thead><tbody>
+  {% for h in horses %}<tr><td><strong>{{ h.name }}</strong><br><span class="small muted">{{ h.temperament }}</span></td><td class="small">{{ types[h.category][0] if h.category in types else h.category }}</td><td class="small">{{ h.suitable_for }}</td><td>{{ (h.max_rider_weight_kg ~ ' kg') if h.max_rider_weight_kg else '—' }}</td><td><span class="badge {{ 'green' if h.status == 'available' else 'amber' if h.status in ['resting','maintenance'] else 'grey' }}">{{ h.status }}</span></td><td>{{ 'Yes' if h.show_publicly else 'No' }}</td><td><a href="?edit={{ h.id }}">Edit</a></td></tr>{% else %}<tr><td colspan="7" class="muted">No horses yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <form method="post" enctype="multipart/form-data" class="card">{{ csrf() }}
+    <h3>{{ 'Edit ' ~ edit.name if edit else 'Add a horse' }}</h3>
+    {% if edit %}<input type="hidden" name="horse_id" value="{{ edit.id }}">{% endif %}
+    <div class="field"><label for="name">Name</label><input id="name" name="name" required value="{{ edit.name if edit else '' }}"></div>
+    <div class="field"><label for="category">Horse type (shown to customers)</label><select id="category" name="category">{% for k, v in types.items() %}<option value="{{ k }}" {% if edit and edit.category == k %}selected{% endif %}>{{ v[0] }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="temperament">Temperament</label><input id="temperament" name="temperament" value="{{ edit.temperament if edit else '' }}"></div>
+    <div class="field"><label for="suitable_for">Suitable for</label><input id="suitable_for" name="suitable_for" value="{{ edit.suitable_for if edit else '' }}" placeholder="e.g. Beginners, children with a leader"></div>
+    <div class="form-grid"><div class="field"><label for="w">Max rider weight (kg)</label><input id="w" type="number" name="max_rider_weight_kg" value="{{ edit.max_rider_weight_kg if edit and edit.max_rider_weight_kg else '' }}"></div>
+    <div class="field"><label for="status">Status</label><select id="status" name="status">{% for s in ['available','resting','maintenance','retired'] %}<option {% if edit and edit.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div></div>
+    <h4 style="margin:18px 0 8px">Public profile (shown in Gallery → Meet our horses)</h4>
+    <div class="form-grid">
+      <div class="field"><label for="breed">Breed</label><input id="breed" name="breed" value="{{ edit.breed or '' if edit else '' }}"></div>
+      <div class="field"><label for="colour">Colour</label><input id="colour" name="colour" list="coat-colours" value="{{ edit.colour or '' if edit else '' }}"><datalist id="coat-colours">{% for c in ['Bay', 'Dark bay', 'Chestnut', 'Brown', 'Grey', 'Palomino', 'Dun', 'Spotted dun', 'Black', 'Black and white', 'Bay roan'] %}<option value="{{ c }}">{% endfor %}</datalist></div>
+      <div class="field"><label for="sex">Sex</label><select id="sex" name="sex"><option value="">—</option>{% for x in ['mare', 'gelding', 'stallion'] %}<option {% if edit and edit.sex == x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="birth_year">Year of birth</label><input id="birth_year" type="number" name="birth_year" value="{{ edit.birth_year or '' if edit else '' }}"><div class="hint">Age is worked out automatically.</div></div>
+      <div class="field"><label for="height_hands">Height (hands)</label><input id="height_hands" name="height_hands" placeholder="15.2" value="{{ edit.height_hands or '' if edit else '' }}"></div>
+      <div class="field"><label for="joined_year">With us since</label><input id="joined_year" type="number" name="joined_year" value="{{ edit.joined_year or '' if edit else '' }}"></div>
+    </div>
+    <div class="field"><label for="favourite_treat">Favourite treat</label><input id="favourite_treat" name="favourite_treat" value="{{ edit.favourite_treat or '' if edit else '' }}"></div>
+    <div class="field"><label for="fun_fact">Fun fact</label><input id="fun_fact" name="fun_fact" maxlength="300" value="{{ edit.fun_fact or '' if edit else '' }}"></div>
+    <div class="field"><label for="history">Their story</label><textarea id="history" name="history">{{ edit.history or '' if edit else '' }}</textarea></div>
+    <div class="field"><label for="notes">Internal notes (care, rest periods)</label><textarea id="notes" name="notes">{{ edit.notes if edit else '' }}</textarea></div>
+    <div class="field"><label for="photo">Photo</label><input id="photo" type="file" name="photo" accept="image/*"></div>
+    <label class="checkbox"><input type="checkbox" name="show_publicly" {% if not edit or edit.show_publicly %}checked{% endif %}> Show in "Meet the horses"</label>
+    <button class="btn btn-ocean" style="margin-top:12px">Save horse</button>
+  </form>
+</div>
+{% endblock %}

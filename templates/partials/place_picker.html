@@ -1,0 +1,21 @@
+{# Where the customer would like to ride. Needs: form, locations #}
+{% set chosen = form.data.get('location_choice') or (locations[0] if locations else '') %}
+<fieldset class="field {% if form.errors.get('location_choice') or form.errors.get('location_other') %}has-error{% endif %}" style="margin-top:22px">
+  <label>Where would you like to ride?</label>
+  <p class="hint" style="margin-top:0">Pick one of our suggested spots, or suggest your own — we'll confirm what's possible.</p>
+  <div class="options" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    {% for loc in locations %}
+    {% set title, _, detail = loc.partition(' — ') %}
+    <div class="option"><input type="radio" name="location_choice" id="loc{{ loop.index }}" value="{{ loc }}" {% if chosen == loc %}checked{% endif %} required>
+      <label for="loc{{ loop.index }}"><strong>📍 {{ title }}</strong>{% if detail %}<span class="small muted">{{ detail }}</span>{% endif %}</label></div>
+    {% endfor %}
+    <div class="option"><input type="radio" name="location_choice" id="loc-other" value="__other__" {% if chosen == '__other__' %}checked{% endif %}>
+      <label for="loc-other"><strong>✏️ Suggest another place</strong><span class="small muted">Tell us where you have in mind</span></label></div>
+  </div>
+  <div data-location-other style="margin-top:12px">
+    <label for="location_other" class="small">Your suggested location</label>
+    <input id="location_other" name="location_other" maxlength="200" value="{{ form.data.get('location_other', '') }}" placeholder="e.g. the beach near our guesthouse, a venue name or area">
+  </div>
+  {% if form.errors.get('location_choice') %}<div class="error-text">{{ form.errors.location_choice }}</div>{% endif %}
+  {% if form.errors.get('location_other') %}<div class="error-text">{{ form.errors.location_other }}</div>{% endif %}
+</fieldset>

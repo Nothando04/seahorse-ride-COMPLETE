@@ -1,0 +1,8 @@
+{% extends "admin/base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Audit log</h1></div>
+<div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>User</th><th>Action</th><th>Entity</th><th>Detail</th><th>IP</th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="small">{{ r.created_at|dt('%d %b %Y %H:%M:%S') }}</td><td>{{ r.user.name if r.user else '—' }}</td><td>{{ r.action }}</td><td class="small">{{ r.entity }} {{ r.entity_id or '' }}</td><td class="small">{{ r.detail or '' }}</td><td class="small">{{ r.ip_address }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

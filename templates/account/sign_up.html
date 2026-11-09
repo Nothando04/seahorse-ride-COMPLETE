@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, err, art %}
+{% block title %}Create an account — {{ site.business_name }}{% endblock %}
+{% block content %}
+{% set img = photo('auth-alt') %}
+<section class="auth">
+  <div class="visual">
+    {% if img %}<img src="{{ img }}" alt="">{% else %}{{ art(2) }}{% endif %}
+    <div>
+      <span class="kicker">Join Seahorse Ride</span><h2>One account for every ride.</h2>
+      <ul class="check-list" style="color:#fff">
+        <li>Request rides and events in minutes</li>
+        <li>Track approval, pay securely and download receipts</li>
+        <li>Message our team and sign rider waivers online</li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel"><div>
+    <img class="auth-logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt="{{ site.business_name }} logo" width="88" height="88">
+    <div class="tabs"><a href="{{ url_for('account.sign_in', next=request.args.get('next')) }}">Sign in</a><a class="on" href="{{ url_for('account.sign_up', next=request.args.get('next')) }}">Create account</a></div>
+    <h1 style="font-size:2.2rem">Create your account</h1>
+    <p class="muted">You'll need it to book — it keeps your bookings private and secure.</p>
+    <form method="post">
+      {{ csrf() }}<input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+      {{ field(form, 'name', 'Full name', attrs='autocomplete="name"') }}
+      {{ field(form, 'email', 'Email', 'email', attrs='autocomplete="email"') }}
+      {{ field(form, 'phone', 'Mobile number', 'tel', required=false, attrs='autocomplete="tel"') }}
+      <div class="field {% if form.errors.get('password') %}has-error{% endif %}">
+        <label for="password">Password</label><input id="password" type="password" name="password" required minlength="10" autocomplete="new-password">
+        <div class="hint">At least 10 characters with upper and lower case letters and a number.</div>{{ err(form, 'password') }}
+      </div>
+      <label class="checkbox"><input type="checkbox" name="accept_privacy" required><span>I agree to the <a href="{{ url_for('public.privacy') }}" target="_blank">privacy policy</a>.</span></label>
+      {{ err(form, 'accept_privacy') }}
+      <label class="checkbox" style="margin-top:10px"><input type="checkbox" name="marketing"><span>Send me occasional news and offers (optional).</span></label>
+      <button class="btn btn-primary btn-block" style="margin-top:18px">Create account</button>
+    </form>
+  </div></div>
+</section>
+{% endblock %}

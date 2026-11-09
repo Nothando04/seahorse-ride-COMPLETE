@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, err, page_hero %}
+{% block title %}Plan Your Event — Birthdays, Proposals, Corporate & Group Rides — {{ site.business_name }}{% endblock %}
+{% block description %}Plan a birthday, proposal, anniversary, family gathering, corporate or tourist group event on horseback. Tell us your plans and we'll send a tailored quote.{% endblock %}
+{% block content %}
+{{ page_hero("Plan your event", "Let's create something memorable", "Birthdays, anniversaries, proposals, family gatherings, friends' outings, school and youth groups, tourist groups, corporate events — tell us what you have in mind. We'll review it and send a tailored quote. No payment now.") }}
+<section class="section" style="padding-top:36px">
+  <div class="narrow">
+    <form method="post" enctype="multipart/form-data" class="card" data-booking data-exps="[]" data-addons="[]" data-age-groups='{{ age_groups|tojson }}' data-levels='{{ levels|tojson }}'>
+      {{ csrf() }}
+      <input type="hidden" name="nonce" value="{{ nonce }}">
+      {% if form.errors %}<div class="flash error" role="alert">Please fix the highlighted fields.</div>{% endif %}
+
+      <fieldset>
+        <legend>Your event</legend>
+        <div class="form-grid">
+          <div class="field {% if form.errors.get('event_type') %}has-error{% endif %}">
+            <label for="event_type">Event type</label>
+            <select id="event_type" name="event_type" required><option value="">Choose…</option>{% for t in event_types %}<option {% if form.data.get('event_type') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+            {{ err(form, 'event_type') }}
+          </div>
+          <div class="field">
+            <label for="experience_id">Preferred package <span class="muted small">(optional)</span></label>
+            {% set pre = form.data.get('experience_id') or request.args.get('package', '') %}
+            <select id="experience_id" name="experience_id"><option value="">Not sure yet</option>{% for e in experiences %}<option value="{{ e.id }}" {% if pre == e.id|string %}selected{% endif %}>{{ e.name }}</option>{% endfor %}</select>
+          </div>
+          {{ field(form, 'preferred_date', 'Preferred date', 'date') }}
+          {{ field(form, 'alternative_date', 'Alternative date', 'date', required=false) }}
+          {{ field(form, 'preferred_time', 'Preferred time', 'time') }}
+          {{ field(form, 'duration_wish', 'Ideal duration', required=false, hint='e.g. 2 hours, half day') }}
+          {{ field(form, 'budget', 'Budget', required=false, hint='Helps us suggest the right options') }}
+        </div>
+        {% include "partials/place_picker.html" %}
+      </fieldset>
+
+      <fieldset style="margin-top:10px">
+        <legend>Guests</legend>
+        <div class="form-grid">
+          {{ field(form, 'adults', 'Adults', 'number', value=form.data.get('adults', '2'), attrs='min="0" max="200"') }}
+          {{ field(form, 'children', 'Children', 'number', value=form.data.get('children', '0'), attrs='min="0" max="200"') }}
+          {{ field(form, 'riders', 'Riders', 'number', value=form.data.get('riders', '2'), attrs='min="0" max="200"') }}
+          {{ field(form, 'spectators', 'Non-riding guests', 'number', required=false, value=form.data.get('spectators', '0'), attrs='min="0" max="200"') }}
+        </div>
+        <label>Riders' age groups and experience</label>
+        <div data-rider-rows></div>
+        {{ err(form, 'riders_detail') }}
+        {% include "partials/horse_picker.html" %}
+      </fieldset>
+
+      <fieldset style="margin-top:18px">
+        <legend>Activities & extras</legend>
+        {{ field(form, 'activities', 'Activities you have in mind', 'textarea', required=false, hint='e.g. sunset ride then picnic, photos at the dunes, a proposal moment') }}
+        {% for a in addons %}<label class="checkbox"><input type="checkbox" name="addons" value="{{ a.id }}" data-name="{{ a.name }}" {% if a.id|string in request.form.getlist('addons') %}checked{% endif %}><span>{{ a.name }} <span class="muted small">— {{ a.description }}</span></span></label>{% endfor %}
+        <div class="field {% if form.errors.get('attachment') %}has-error{% endif %}" style="margin-top:16px">
+          <label for="attachment">Event brief or reference image <span class="muted small">(optional — PDF, JPG, PNG or WEBP, max 5 MB)</span></label>
+          <input id="attachment" type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp">
+          {{ err(form, 'attachment') }}
+        </div>
+      </fieldset>
+
+      <fieldset style="margin-top:10px">
+        <legend>Your details</legend>
+        <div class="form-grid">
+          {{ field(form, 'contact_name', 'Full name', value=form.data.get('contact_name') or (current_user.name if current_user else '')) }}
+          {{ field(form, 'contact_email', 'Email (your account)', 'email', value=current_user.email, attrs='readonly', hint='Booking updates go to your account email.') }}
+          {{ field(form, 'contact_phone', 'Mobile number', 'tel', value=form.data.get('contact_phone') or (current_user.phone if current_user and current_user.phone else '')) }}
+          <div class="field"><label for="preferred_contact">Preferred contact method</label>
+            <select id="preferred_contact" name="preferred_contact" required>{% for m in contact_methods %}<option value="{{ m }}" {% if form.data.get('preferred_contact') == m %}selected{% endif %}>{{ m|capitalize }}</option>{% endfor %}</select></div>
+        </div>
+        {{ field(form, 'accessibility', 'Accessibility requirements', 'textarea', required=false) }}
+        {{ field(form, 'special_requests', 'Special requests & notes', 'textarea', required=false, hint='School/youth groups: please list supervising adults and safeguarding arrangements.') }}
+      </fieldset>
+
+      <div class="note" style="margin:6px 0 18px">If you ask for something we don't normally offer, it's treated as a custom enquiry and our team will come back to you. We don't take payment at this stage.</div>
+      <div class="field {% if form.errors.get('accept_terms') %}has-error{% endif %}">
+        <label class="checkbox"><input type="checkbox" name="accept_terms" required {% if form.checked('accept_terms') %}checked{% endif %}><span>I've read the <a href="{{ url_for('public.terms') }}" target="_blank">terms</a>, <a href="{{ url_for('public.cancellation') }}" target="_blank">cancellation policy</a> and <a href="{{ url_for('public.privacy') }}" target="_blank">privacy policy</a>.</span></label>
+        {{ err(form, 'accept_terms') }}
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Send event enquiry</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

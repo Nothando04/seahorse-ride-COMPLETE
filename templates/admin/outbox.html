@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Email outbox{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Email outbox</h1><form method="post">{{ csrf() }}<button class="btn btn-ocean btn-sm">Retry failed emails</button></form></div>
+<p class="small muted">Status <strong>logged</strong> means SMTP isn't configured yet, so the email was recorded here instead of sent — set the SMTP_* values in .env to send real emails. Failed emails are retried automatically (up to 5 times).</p>
+{% for n in items %}
+<details class="panel"><summary><span class="badge {{ {'sent':'green','failed':'red','logged':'blue'}.get(n.status, 'amber') }}">{{ n.status }}</span> {{ n.subject }} <span class="small muted">→ {{ n.to_email }} · {{ n.created_at|dt }}</span></summary>
+<div><pre style="white-space:pre-wrap;font:inherit;font-size:.9rem;background:var(--sand-100);padding:14px;border-radius:10px">{{ n.body_text }}</pre>{% if n.last_error %}<p class="error-text">{{ n.last_error }}</p>{% endif %}</div></details>
+{% else %}<p class="muted">No emails yet.</p>{% endfor %}
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import badge %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Messages</h1></div>
+<h3>Unread from customers</h3>
+<div class="table-wrap"><table><tbody>
+{% for b, n in unread %}<tr><td><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}#messages"><strong>{{ b.reference }}</strong></a></td><td>{{ b.contact_name }}</td><td>{{ badge(b.status) }}</td><td><span class="count badge amber">{{ n }} unread</span></td></tr>{% else %}<tr><td class="muted">No unread messages.</td></tr>{% endfor %}
+</tbody></table></div>
+<h3 style="margin-top:26px">Latest messages</h3>
+<div class="table-wrap"><table><thead><tr><th>When</th><th>Booking</th><th>From</th><th>Message</th></tr></thead><tbody>
+{% for m in latest %}<tr><td class="small">{{ m.created_at|dt }}</td><td><a href="{{ url_for('admin.request_detail', booking_id=m.booking_id) }}#messages">{{ m.booking.reference }}</a></td><td>{{ m.sender }}</td><td class="small">{{ m.body[:160] }}{{ '…' if m.body|length > 160 }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

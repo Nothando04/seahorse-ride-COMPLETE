@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field %}
+{% block title %}Reset password — {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="section"><div class="narrow" style="max-width:460px">
+  <h1 style="font-size:2.2rem">Reset your password</h1>
+  <form method="post" class="card">{{ csrf() }}{{ field(form, 'email', 'Email', 'email') }}<button class="btn btn-primary btn-block">Send reset link</button></form>
+</div></section>
+{% endblock %}

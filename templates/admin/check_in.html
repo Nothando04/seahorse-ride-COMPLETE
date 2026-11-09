@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf, badge %}
+{% block title %}Check-in{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Rides on {{ day.strftime('%a %d %b %Y') }}</h1>
+<form class="row"><input type="date" name="date" value="{{ day.isoformat() }}" style="max-width:180px"><button class="btn btn-ocean btn-sm" data-keep>Go</button></form></div>
+{% if current_user.role == 'guide' %}<p class="small muted">Showing rides assigned to you.</p>{% endif %}
+<div class="grid g2">
+{% for b in bookings %}
+  <div class="card">
+    <div class="row between"><strong>{{ b.slot.start_time }} · {{ b.reference }}</strong>{{ badge(b.status) }}</div>
+    <p style="margin:6px 0">{{ b.contact_name }} · <a href="tel:{{ b.contact_phone|replace(' ', '') }}">{{ b.contact_phone }}</a></p>
+    <dl class="kv small"><dt>Experience</dt><dd>{{ b.display_name }}</dd><dt>Riders</dt><dd>{{ b.riders }} ({% for r in b.rider_list %}{{ r.age_group }}/{{ r.experience }}{{ ', ' if not loop.last }}{% endfor %})</dd><dt>Horses</dt><dd>{{ b.horses|map(attribute='name')|join(', ') or '—' }}</dd><dt>Guide</dt><dd>{{ b.guide.name if b.guide else '—' }}</dd><dt>Waivers</dt><dd>{{ b.signatures|length }}/{{ b.riders }}</dd><dt>Balance</dt><dd>{{ b.balance_cents|money }}</dd>
+    {% if b.accessibility %}<dt>Accessibility</dt><dd>{{ b.accessibility }}</dd>{% endif %}</dl>
+    {% for s in b.signatures if s.medical_notes %}<p class="small">⚕ {{ s.rider_name }}: {{ s.medical_notes }}</p>{% endfor %}
+    {% if b.checked_in_at %}<p class="badge green">Checked in {{ b.checked_in_at|dt('%H:%M') }}</p>
+    {% else %}<form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="check_in"><button class="btn btn-primary btn-sm">Check in</button></form>{% endif %}
+  </div>
+{% else %}<p class="muted">No rides on this day.</p>{% endfor %}
+</div>
+{% endblock %}

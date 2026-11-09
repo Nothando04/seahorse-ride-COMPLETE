@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Business settings</h1></div>
+<p class="small muted">Leave address and contact fields blank until confirmed — the site never shows invented details. Payment gateway, email (SMTP) and database credentials are server environment variables (see README), never stored here.</p>
+<form method="post" enctype="multipart/form-data" class="card">{{ csrf() }}
+  {% set labels = {'business_name':'Business name','tagline':'Tagline','contact_email':'Public contact email','contact_phone':'Public phone (click-to-call)','whatsapp_number':'WhatsApp number (international, digits only e.g. 27821234567)','address':'Address','meeting_point':'Meeting point','operating_hours':'Operating hours','facebook_url':'Facebook URL','instagram_url':'Instagram URL','staff_alert_email':'Staff alert emails (comma-separated; blank = all admins)','deposit_percent':'Default deposit %','payment_deadline_hours':'Default payment deadline (hours after approval)','reminder_hours':'Ride reminder (hours before)','cancellation_policy':'Cancellation & refund policy (shown publicly and in approval emails)','ride_locations':'Suggested riding locations (one per line; optional detail after " — ")'} %}
+  <div class="form-grid">
+  {% for k in editable if k not in ['cancellation_policy', 'ride_locations'] %}<div class="field"><label for="{{ k }}">{{ labels[k] }}</label><input id="{{ k }}" name="{{ k }}" value="{{ s[k] }}"></div>{% endfor %}
+  </div>
+  <div class="field"><label for="cancellation_policy">{{ labels.cancellation_policy }}</label><textarea id="cancellation_policy" name="cancellation_policy" style="min-height:160px">{{ s.cancellation_policy }}</textarea></div>
+  <div class="field"><label for="ride_locations">{{ labels.ride_locations }}</label><textarea id="ride_locations" name="ride_locations" style="min-height:140px">{{ s.ride_locations }}</textarea><div class="hint">Customers choose one of these on the booking and event forms, or suggest their own place.</div></div>
+  <div class="field"><label for="hero_image">Home page hero photo</label><input id="hero_image" type="file" name="hero_image" accept="image/*">
+    {% if s.hero_image %}<img src="{{ url_for('public.media', rel=s.hero_image) }}" alt="" style="max-width:280px;border-radius:10px;margin-top:8px"><label class="checkbox small"><input type="checkbox" name="remove_hero"> Remove (use the illustrated default)</label>{% endif %}</div>
+  <button class="btn btn-ocean">Save settings</button>
+</form>
+{% endblock %}

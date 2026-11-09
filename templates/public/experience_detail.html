@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import page_hero, art %}
+{% block title %}{{ exp.name }} — {{ site.business_name }}{% endblock %}
+{% block description %}{{ exp.summary }}{% endblock %}
+{% block content %}
+{% set img = exp_photo(exp) %}
+{{ page_hero('Ride' if exp.kind == 'ride' else 'Package', exp.name, exp.summary, img=img) }}
+<section class="section">
+  <div class="container split">
+    <div class="stack">
+      <div class="ph" style="aspect-ratio:16/9">{% if img %}<img src="{{ img }}" alt="{{ exp.name }}">{% else %}{{ art(exp.id) }}{% endif %}</div>
+      {% if exp.description and exp.description != exp.summary %}<div>{% for p in exp.description.split('\n\n') %}<p>{{ p }}</p>{% endfor %}</div>{% endif %}
+      <div class="grid g2">
+        <div class="card flat"><h3>What's included</h3><ul class="check-list">{% for i in exp.inclusions|lines %}<li>{{ i }}</li>{% else %}<li>Confirmed on approval</li>{% endfor %}</ul></div>
+        <div class="card flat"><h3>Not included</h3><ul class="check-list x-list">{% for i in exp.exclusions|lines %}<li>{{ i }}</li>{% else %}<li>—</li>{% endfor %}</ul></div>
+      </div>
+      {% if exp.requirements %}<div class="card flat"><h3>Rider requirements</h3><p style="margin:0">{{ exp.requirements }}</p></div>{% endif %}
+      {% if exp.safety_notes %}<div class="note"><strong>Safety:</strong> {{ exp.safety_notes }}</div>{% endif %}
+      {% if exp.terms %}<div class="card flat"><h3>Terms</h3><p class="small" style="margin:0">{{ exp.terms }}</p><p class="small" style="margin:8px 0 0"><a href="{{ url_for('public.cancellation') }}">Cancellation & refund policy</a></p></div>{% endif %}
+    </div>
+    <aside class="card" style="position:sticky;top:90px">
+      <div class="price" style="font-family:var(--display);font-size:1.8rem;color:var(--ocean-800)">{{ exp|price_label }}</div>
+      <dl class="kv" style="margin:14px 0">
+        {% if exp.duration_minutes %}<dt>Duration</dt><dd>{{ exp.duration_minutes }} minutes</dd>{% endif %}
+        <dt>Group size</dt><dd>{{ exp.min_group }}{% if exp.max_group %}–{{ exp.max_group }}{% else %}+{% endif %} people</dd>
+        {% if exp.min_age %}<dt>Minimum age</dt><dd>{{ exp.min_age }}</dd>{% endif %}
+        <dt>Difficulty</dt><dd>{{ exp.difficulty }}</dd>
+        {% if exp.availability_note %}<dt>Availability</dt><dd>{{ exp.availability_note }}</dd>{% endif %}
+      </dl>
+      {% if addons %}<p class="small"><strong>Add-ons:</strong> {{ addons|map(attribute='name')|join(', ') }}</p>{% endif %}
+      {% if exp.price_basis == 'quote' %}
+        <a class="btn btn-primary btn-block" href="{{ url_for('booking.plan_event') }}">Plan Your Event</a>
+      {% else %}
+        <a class="btn btn-primary btn-block" href="{{ url_for('booking.book', experience=exp.id) }}">Request this booking</a>
+      {% endif %}
+      <p class="small muted" style="margin:12px 0 0">No payment now. We confirm availability and the final price first.</p>
+    </aside>
+  </div>
+</section>
+{% endblock %}

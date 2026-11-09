@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, badge %}
+{% block title %}Booking {{ b.reference }} — {{ site.business_name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+{% set flow = ['Request sent', 'Under review', 'Approved', 'Paid', 'Ride day'] %}
+{% set stage = {'Pending Admin Approval': 1, 'Awaiting Customer Information': 1, 'Changes Proposed': 1, 'Approved — Awaiting Payment': 2, 'Payment Processing': 2, 'Confirmed — Paid': 4, 'Rescheduling Requested': 4, 'Rescheduled': 4, 'Completed': 5}.get(b.status, -1) %}
+<section class="section" style="padding-top:36px">
+  <div class="container">
+    {% if current_user and current_user.is_staff %}<div class="flash info">Staff view of the customer page. <a href="{{ url_for('admin.request_detail', booking_id=b.id) }}">Open in admin</a>.</div>{% endif %}
+    <div class="row between" style="align-items:end">
+      <div><span class="eyebrow">{{ 'Event enquiry' if b.kind == 'event' else 'Booking' }} {{ b.reference }}</span><h1 style="font-size:clamp(1.9rem,4vw,2.6rem);margin:0">{{ b.display_name }}</h1></div>
+      {{ badge(b.status) }}
+    </div>
+    {% if stage >= 0 %}
+    <ol class="progress" aria-label="Booking progress">
+      {% for s in flow %}<li class="{{ 'done' if loop.index0 < stage else ('current' if loop.index0 == stage else '') }}">{{ s }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+    <p class="note" style="margin-top:18px">{{ status_explanation(b.status) }}</p>
+
+    <div class="split" style="margin-top:26px">
+      <div class="stack">
+        {% if b.status == 'Changes Proposed' %}
+        <div class="card" style="border-color:var(--sunset-500)">
+          <h3>Proposed changes</h3>
+          <p style="white-space:pre-line">{{ b.approval_note }}</p>
+          <form method="post" action="{{ url_for('booking.respond', ref=b.reference) }}" class="row">{{ csrf() }}<input type="hidden" name="action" value="accept_changes">
+            <input type="text" name="note" placeholder="Optional note" style="flex:1;min-width:200px"><button class="btn btn-primary">Accept changes</button></form>
+          <p class="small muted" style="margin:10px 0 0">Prefer something else? Reply in the messages below.</p>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <h3>Booking details</h3>
+          <dl class="kv">
+            <dt>Reference</dt><dd>{{ b.reference }}</dd>
+            <dt>{{ 'Confirmed session' if b.slot else 'Requested date' }}</dt><dd>{{ b.slot.label if b.slot else b.preferred_date.strftime('%a %d %b %Y') ~ (' at ' ~ b.preferred_time if b.preferred_time else '') }}</dd>
+            {% if b.alternative_date and not b.slot %}<dt>Alternative date</dt><dd>{{ b.alternative_date.strftime('%a %d %b %Y') }}</dd>{% endif %}
+            {% if b.event_type %}<dt>Event type</dt><dd>{{ b.event_type }}</dd>{% endif %}
+            <dt>Group</dt><dd>{{ b.adults }} adult(s), {{ b.children }} child(ren){% if b.spectators %}, {{ b.spectators }} non-riding{% endif %}</dd>
+            <dt>Riders</dt><dd>{{ b.riders }}{% if b.rider_list %} — {% for r in b.rider_list %}{{ age_groups.get(r.age_group, r.age_group) }} ({{ levels.get(r.experience, r.experience)|lower }}){{ ', ' if not loop.last }}{% endfor %}{% endif %}</dd>
+            {% if b.addons %}<dt>Extras</dt><dd>{{ b.addons|map(attribute='name')|join(', ') }}</dd>{% endif %}
+            {% if b.location %}<dt>Where</dt><dd>{{ b.location }}</dd>{% endif %}
+            <dt>Horse type</dt><dd>{{ horse_type_label(b.horse_preference) }}</dd>
+            {% if b.special_requests %}<dt>Your notes</dt><dd style="font-weight:400">{{ b.special_requests }}</dd>{% endif %}
+            {% if site.meeting_point and b.slot %}<dt>Meeting point</dt><dd>{{ site.meeting_point }}</dd>{% endif %}
+          </dl>
+          {% if b.status in ['Confirmed — Paid', 'Rescheduled'] and b.slot %}<p style="margin:14px 0 0"><a class="btn btn-ghost btn-sm" href="{{ url_for('booking.calendar', ref=b.reference) }}">Add to calendar</a></p>{% endif %}
+        </div>
+
+        <div class="card" id="messages">
+          <h3>Messages</h3>
+          <div class="thread" aria-live="polite">
+            {% for m in messages %}
+              <div class="msg {{ 'mine' if m.sender == 'customer' else ('system' if m.sender == 'system' else '') }}">
+                <div style="white-space:pre-line">{{ m.body }}</div>
+                <div class="meta">{{ 'You' if m.sender == 'customer' else ('Seahorse Ride team' if m.sender == 'admin' else 'Update') }} · {{ m.created_at|dt }} UTC</div>
+              </div>
+            {% endfor %}
+          </div>
+          {% if b.status not in ['Refunded', 'Declined'] %}
+          <form method="post" action="{{ url_for('booking.post_message', ref=b.reference) }}" style="margin-top:14px">{{ csrf() }}
+            <label for="body" class="sr-only">Message</label>
+            <textarea id="body" name="body" required maxlength="3000" placeholder="{{ 'Reply with the information requested…' if b.status == 'Awaiting Customer Information' else 'Write a message to our team…' }}"></textarea>
+            <button class="btn btn-ocean" style="margin-top:10px">Send message</button>
+          </form>
+          {% endif %}
+        </div>
+
+        {% if waiver and b.status in ['Approved — Awaiting Payment', 'Confirmed — Paid', 'Rescheduled', 'Rescheduling Requested'] %}
+        <div class="card" id="waiver">
+          <h3>Rider waiver <span class="small muted">({{ b.signatures|length }} of {{ b.riders }} signed)</span></h3>
+          {% for s in b.signatures %}<p class="small" style="margin:4px 0">✓ {{ s.rider_name }} — signed by {{ s.signer_name }} on {{ s.signed_at|dt }} (version {{ s.waiver.version }})</p>{% endfor %}
+          {% if b.signatures|length < b.riders %}
+          <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700">Read and sign for a rider</summary>
+            <div style="white-space:pre-line;max-height:240px;overflow:auto;background:var(--sand-100);padding:14px;border-radius:10px;margin:12px 0" class="small"><strong>{{ waiver.title }}</strong> (version {{ waiver.version }})
+
+{{ waiver.body }}</div>
+            <form method="post" action="{{ url_for('booking.sign_waiver', ref=b.reference) }}">{{ csrf() }}
+              <div class="form-grid">
+                <div class="field"><label for="rider_name">Rider's full name</label><input id="rider_name" name="rider_name" required></div>
+                <div class="field"><label for="signer_name">Signed by (parent/guardian for under-18s)</label><input id="signer_name" name="signer_name" required></div>
+                <div class="field"><label for="emergency_name">Emergency contact name</label><input id="emergency_name" name="emergency_name" required></div>
+                <div class="field"><label for="emergency_phone">Emergency contact phone</label><input id="emergency_phone" name="emergency_phone" type="tel" required></div>
+              </div>
+              <div class="field"><label for="medical_notes">Medical notes the guide should know <span class="muted small">(optional)</span></label><input id="medical_notes" name="medical_notes" maxlength="500"></div>
+              <label class="checkbox"><input type="checkbox" name="rider_is_minor"><span>This rider is under 18</span></label>
+              <label class="checkbox"><input type="checkbox" name="agree" required><span>I have read and accept the waiver above. Typing my name above is my electronic signature.</span></label>
+              <button class="btn btn-ocean" style="margin-top:12px">Sign waiver</button>
+            </form>
+          </details>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if b.status == 'Completed' %}
+        <div class="card">
+          <h3>How was your ride?</h3>
+          {% if b.review %}<p class="muted">Thanks for your review{% if b.review.status == 'pending' %} — it will appear once checked{% endif %}.</p>
+          {% else %}
+          <form method="post" action="{{ url_for('booking.review', ref=b.reference) }}">{{ csrf() }}
+            <div class="form-grid">
+              <div class="field"><label for="rating">Rating</label><select id="rating" name="rating" required>{% for i in range(5, 0, -1) %}<option value="{{ i }}">{{ '★' * i }} ({{ i }})</option>{% endfor %}</select></div>
+              <div class="field"><label for="display_name">Name to show</label><input id="display_name" name="display_name" value="{{ b.contact_name.split(' ')[0] }}" required></div>
+            </div>
+            <div class="field"><label for="comment">Your review</label><textarea id="comment" name="comment" required minlength="10"></textarea></div>
+            <button class="btn btn-primary">Submit review</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      <aside class="stack">
+        {% if b.final_price_cents %}
+        <div class="price-box">
+          <span class="small muted">Final price</span>
+          <div class="amount">{{ b.final_price_cents|money }}</div>
+          <p class="small" style="margin:6px 0 0;opacity:.9">{{ 'Deposit ' ~ (b.deposit_cents|money) ~ ' then balance' if b.payment_mode == 'deposit' else 'Full payment' }} · {{ b.currency }}</p>
+          <hr style="border:0;border-top:1px solid rgba(255,255,255,.2);margin:14px 0">
+          <dl class="kv" style="color:#fff"><dt style="color:#cfe3e8">Paid</dt><dd>{{ b.amount_paid_cents|money }}</dd><dt style="color:#cfe3e8">Outstanding</dt><dd>{{ b.balance_cents|money }}</dd>
+          {% if b.amount_refunded_cents %}<dt style="color:#cfe3e8">Refunded</dt><dd>{{ b.amount_refunded_cents|money }}</dd>{% endif %}
+          {% if b.payment_deadline and b.status in ['Approved — Awaiting Payment', 'Payment Processing'] %}<dt style="color:#cfe3e8">Pay by</dt><dd>{{ b.payment_deadline|dt }} UTC</dd>{% endif %}</dl>
+          {% if not pay_block %}
+            <a class="btn btn-primary btn-block" style="margin-top:16px" href="{{ url_for('payments.pay', ref=b.reference) }}">Pay {{ b.amount_due_now_cents|money }} securely</a>
+          {% endif %}
+          {% if b.amount_paid_cents %}<a class="btn btn-light btn-block btn-sm" style="margin-top:10px" href="{{ url_for('booking.receipt', ref=b.reference) }}">Receipt</a>{% endif %}
+        </div>
+        {% if b.approval_note and b.status != 'Changes Proposed' %}<div class="card flat small"><strong>Note from our team:</strong><p style="margin:6px 0 0;white-space:pre-line">{{ b.approval_note }}</p></div>{% endif %}
+        {% else %}
+        <div class="card flat">
+          <h3>Price</h3>
+          {% if b.estimate_cents %}<p style="margin:0">Indicative estimate: <strong>{{ b.estimate_cents|money }}</strong></p>{% endif %}
+          <p class="small muted" style="margin:8px 0 0">Your final price is confirmed when our team approves the request. Payment isn't available until then.</p>
+        </div>
+        {% endif %}
+
+        <div class="card flat">
+          <h3>Need a change?</h3>
+          {% if b.status in ['Confirmed — Paid', 'Rescheduled'] %}
+          <form method="post" action="{{ url_for('booking.respond', ref=b.reference) }}">{{ csrf() }}<input type="hidden" name="action" value="reschedule">
+            <label for="rnote">Request a new date</label><textarea id="rnote" name="note" placeholder="Which dates/times work for you?" required></textarea>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px">Send rescheduling request</button></form>
+          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+          {% endif %}
+          {% if b.status not in ['Cancelled', 'Declined', 'Completed', 'No-Show', 'Refunded', 'Refund Pending', 'Partially Refunded'] %}
+          <form method="post" action="{{ url_for('booking.respond', ref=b.reference) }}">{{ csrf() }}<input type="hidden" name="action" value="cancel">
+            <label for="cnote">{{ 'Cancel this request' if not b.amount_paid_cents else 'Request cancellation' }}</label>
+            <input id="cnote" name="note" placeholder="Reason (optional)">
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px" data-confirm="{{ 'Cancel this request?' if not b.amount_paid_cents else 'Send a cancellation request? Refunds follow our cancellation policy.' }}">{{ 'Cancel request' if not b.amount_paid_cents else 'Request cancellation' }}</button>
+          </form>
+          <p class="small muted" style="margin:8px 0 0"><a href="{{ url_for('public.cancellation') }}">Cancellation & refund policy</a></p>
+          {% else %}<p class="small muted" style="margin:0">This booking is closed. Message us if you need anything.</p>{% endif %}
+        </div>
+
+        <div class="card flat small">
+          <h3>Timeline</h3>
+          <ul class="timeline">{% for h in b.history|reverse %}<li><strong>{{ h.to_status }}</strong><br><span class="muted">{{ h.created_at|dt }} UTC</span></li>{% endfor %}</ul>
+        </div>
+        <div class="card flat small">
+          <strong>Questions?</strong>
+          <p style="margin:6px 0 0">Message us above{% if site.contact_phone %}, call <a href="tel:{{ site.contact_phone|replace(' ', '') }}">{{ site.contact_phone }}</a>{% endif %}{% if site.whatsapp_number %} or <a href="https://wa.me/{{ site.whatsapp_number }}?text={{ ('Hi, about booking ' ~ b.reference)|urlencode }}" rel="noopener">WhatsApp us</a>{% endif %}.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

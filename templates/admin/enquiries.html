@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Enquiries{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>General enquiries</h1></div>
+{% for e in enquiries %}
+<details class="panel" {% if e.status == 'new' %}open{% endif %}><summary>{{ e.subject }} — {{ e.name }} <span class="badge {{ 'amber' if e.status == 'new' else 'grey' }}">{{ e.status }}</span> <span class="small muted">{{ e.created_at|dt }}</span></summary><div>
+  <p class="small"><a href="mailto:{{ e.email }}">{{ e.email }}</a>{% if e.phone %} · <a href="tel:{{ e.phone }}">{{ e.phone }}</a>{% endif %}</p>
+  <p style="white-space:pre-line">{{ e.message }}</p>
+  {% if e.reply %}<div class="note small"><strong>Our reply:</strong><br>{{ e.reply }}</div>{% endif %}
+  <form method="post">{{ csrf() }}<input type="hidden" name="enquiry_id" value="{{ e.id }}"><textarea name="reply" placeholder="Reply (emailed to {{ e.email }})"></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn btn-ocean btn-sm">Send reply</button><button class="btn btn-ghost btn-sm" name="action" value="close" formnovalidate>Close</button></div></form>
+</div></details>
+{% else %}<p class="muted">No enquiries yet.</p>{% endfor %}
+{% endblock %}

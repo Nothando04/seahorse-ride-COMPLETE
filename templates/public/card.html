@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ site.business_name }} — Digital Business Card</title>
+  <meta name="description" content="{{ site.tagline }}. Book a beach horse ride, plan an event, or save our contact details.">
+  <meta property="og:title" content="{{ site.business_name }}">
+  <meta property="og:description" content="{{ site.tagline }}">
+  <meta property="og:image" content="{{ url_for('static', filename='img/logo.png', _external=True) }}">
+  <meta name="theme-color" content="#0b3442">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+</head>
+<body class="card-body">
+{% set hero = photo('hero') %}
+<div class="card-backdrop">{% if hero %}<img src="{{ hero }}" alt="">{% endif %}</div>
+
+<main class="bizcard-wrap">
+  {% if local %}
+  <div class="flash warning no-print" role="status" style="margin:0 0 16px">
+    <strong>This QR code points to this computer only</strong> ({{ base }}), so other people's phones can't open it.
+    Start the site with the public link switched on (<code>PUBLIC_LINK=true</code>), or deploy it — the QR then updates automatically.
+  </div>
+  {% endif %}
+
+  <article class="bizcard" aria-label="Digital business card">
+    <header class="bizcard-head">
+      <img class="bizcard-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ site.business_name }} logo" width="150" height="150">
+      <h1>{{ site.business_name }}</h1>
+      <p class="bizcard-tag">{{ site.tagline }}</p>
+      {% if site.operating_hours or site.meeting_point %}
+      <p class="bizcard-meta">{% if site.meeting_point %}📍 {{ site.meeting_point }}{% endif %}{% if site.operating_hours and site.meeting_point %} · {% endif %}{% if site.operating_hours %}🕒 {{ site.operating_hours }}{% endif %}</p>
+      {% endif %}
+    </header>
+
+    <div class="bizcard-actions">
+      <a class="bc-btn primary" href="{{ base }}/book">🐎 <span>Book a ride</span></a>
+      <a class="bc-btn" href="{{ base }}/plan-your-event">🎉 <span>Plan an event</span></a>
+      {% if site.whatsapp_number %}<a class="bc-btn" href="https://wa.me/{{ site.whatsapp_number|replace('+', '') }}?text={{ ('Hi ' ~ site.business_name ~ ', I would like to book a ride')|urlencode }}" rel="noopener">💬 <span>WhatsApp</span></a>{% endif %}
+      {% if site.contact_phone %}<a class="bc-btn" href="tel:{{ site.contact_phone|replace(' ', '') }}">📞 <span>Call us</span></a>{% endif %}
+      {% if site.contact_email %}<a class="bc-btn" href="mailto:{{ site.contact_email }}">✉️ <span>Email</span></a>{% endif %}
+      <a class="bc-btn" href="{{ base }}/gallery#meet-our-horses">🐴 <span>Meet the horses</span></a>
+      {% if site.address or site.meeting_point %}<a class="bc-btn" href="https://www.google.com/maps/search/?api=1&query={{ (site.address or site.meeting_point)|urlencode }}" rel="noopener">🗺️ <span>Directions</span></a>{% endif %}
+      <a class="bc-btn" href="{{ base }}/">🌊 <span>Website</span></a>
+    </div>
+
+    <a class="bc-save" href="{{ url_for('public.card_vcard') }}">＋ Save our contact to your phone</a>
+
+    <section class="bizcard-qr">
+      <div class="qr-box">{{ qr|safe }}<img class="qr-logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt=""></div>
+      <div>
+        <h2>Scan to visit</h2>
+        <p class="qr-url">{{ base|replace('https://', '')|replace('http://', '') }}</p>
+        <p class="small muted" style="margin:6px 0 0">Point your phone camera at the code — no app needed.</p>
+      </div>
+    </section>
+
+    {% if site.facebook_url or site.instagram_url %}
+    <p class="bizcard-social">{% if site.facebook_url %}<a href="{{ site.facebook_url }}" rel="noopener">Facebook</a>{% endif %}{% if site.facebook_url and site.instagram_url %} · {% endif %}{% if site.instagram_url %}<a href="{{ site.instagram_url }}" rel="noopener">Instagram</a>{% endif %}</p>
+    {% endif %}
+  </article>
+
+  <div class="bizcard-tools no-print">
+    <button type="button" class="btn btn-light btn-sm" data-share data-url="{{ base }}/card" data-title="{{ site.business_name }}" data-keep>Share this card</button>
+    <a class="btn btn-light btn-sm" href="{{ url_for('public.card_qr_png', **{'for': 'site'}) }}">Download QR (website)</a>
+    <a class="btn btn-light btn-sm" href="{{ url_for('public.card_qr_png', **{'for': 'card'}) }}">Download QR (this card)</a>
+    <button type="button" class="btn btn-light btn-sm" data-print data-keep>Print business cards</button>
+  </div>
+  {% if current_user and current_user.is_staff %}
+  <p class="small no-print" style="color:#cfe3e8;text-align:center;margin-top:10px">Staff: contact details, WhatsApp, hours and socials on this card come from Admin → Settings.</p>
+  {% endif %}
+</main>
+
+<!-- Print: standard 85 × 55 mm business cards (front + back), ready to cut -->
+<section class="print-sheet" aria-hidden="true">
+  {% for i in range(4) %}
+  <div class="pc front">
+    <img src="{{ url_for('static', filename='img/logo-small.png') }}" alt="">
+    <div><strong>{{ site.business_name }}</strong><span>{{ site.tagline }}</span>
+      {% if site.contact_phone %}<span>{{ site.contact_phone }}</span>{% endif %}{% if site.contact_email %}<span>{{ site.contact_email }}</span>{% endif %}</div>
+  </div>
+  <div class="pc back"><div class="pc-qr">{{ qr|safe }}</div><div><strong>Book your beach ride</strong><span>{{ base|replace('https://', '')|replace('http://', '') }}</span></div></div>
+  {% endfor %}
+</section>
+<script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+</body>
+</html>

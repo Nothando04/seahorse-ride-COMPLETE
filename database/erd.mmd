@@ -1,0 +1,272 @@
+erDiagram
+  add_on {
+    integer id PK
+    string name
+    string description
+    integer price_cents
+    string price_basis
+    boolean is_active
+  }
+  enquiry {
+    integer id PK
+    string name
+    string email
+    string phone
+    string subject
+    text message
+    string status
+    text reply
+    datetime created_at
+  }
+  experience {
+    integer id PK
+    string slug
+    string kind
+    string name
+    string summary
+    text description
+    integer duration_minutes
+    integer price_cents
+    string price_basis
+    integer min_group
+    integer max_group
+    integer min_age
+    string difficulty
+    text requirements
+    text inclusions
+    text exclusions
+    text terms
+    text safety_notes
+    string availability_note
+    string image_path
+    boolean is_active
+    boolean is_featured
+    integer sort_order
+    datetime created_at
+  }
+  gallery_image {
+    integer id PK
+    string path
+    string caption
+    string category
+    boolean consent_confirmed
+    boolean is_published
+    datetime created_at
+  }
+  horse {
+    integer id PK
+    string name
+    string temperament
+    string suitable_for
+    integer max_rider_weight_kg
+    string status
+    text notes
+    string photo_path
+    boolean show_publicly
+  }
+  setting {
+    string key PK
+    text value
+  }
+  user {
+    integer id PK
+    string email
+    string name
+    string phone
+    string password_hash
+    string role
+    boolean email_verified
+    boolean marketing_opt_in
+    boolean is_active
+    datetime created_at
+    datetime last_login_at
+  }
+  waiver {
+    integer id PK
+    integer version
+    string title
+    text body
+    boolean is_active
+    datetime created_at
+  }
+  audit_log {
+    integer id PK
+    integer user_id FK
+    string action
+    string entity
+    string entity_id
+    text detail
+    string ip_address
+    datetime created_at
+  }
+  slot {
+    integer id PK
+    date date
+    string start_time
+    string end_time
+    integer capacity
+    string status
+    string block_reason
+    integer experience_id FK
+  }
+  booking {
+    integer id PK
+    string reference
+    string access_key
+    string kind
+    string status
+    integer user_id FK
+    integer experience_id FK
+    integer slot_id FK
+    date preferred_date
+    string preferred_time
+    date alternative_date
+    integer adults
+    integer children
+    integer riders
+    integer spectators
+    text rider_details
+    text addon_ids
+    string event_type
+    string location
+    string budget
+    string duration_wish
+    text activities
+    string attachment_path
+    string contact_name
+    string contact_email
+    string contact_phone
+    string preferred_contact
+    text accessibility
+    text special_requests
+    datetime terms_accepted_at
+    integer estimate_cents
+    integer final_price_cents
+    string currency
+    string payment_mode
+    integer deposit_cents
+    datetime payment_deadline
+    text approval_note
+    datetime approved_at
+    integer approved_by_id FK
+    integer guide_id FK
+    datetime reminder_sent_at
+    datetime checked_in_at
+    datetime created_at
+    datetime updated_at
+  }
+  booking_horses {
+    integer booking_id PK
+    integer horse_id PK
+  }
+  message {
+    integer id PK
+    integer booking_id FK
+    string sender
+    integer user_id FK
+    text body
+    boolean internal
+    boolean read_by_customer
+    boolean read_by_admin
+    datetime created_at
+  }
+  notification {
+    integer id PK
+    string to_email
+    string subject
+    text body_text
+    string channel
+    string status
+    integer attempts
+    string last_error
+    integer booking_id FK
+    datetime created_at
+    datetime sent_at
+  }
+  payment {
+    integer id PK
+    integer booking_id FK
+    string m_payment_id
+    string provider
+    string kind
+    integer amount_cents
+    string status
+    string gateway_payment_id
+    string method_note
+    integer recorded_by_id FK
+    datetime created_at
+    datetime paid_at
+  }
+  refund {
+    integer id PK
+    integer booking_id FK
+    integer amount_cents
+    string reason
+    string status
+    integer created_by_id FK
+    datetime created_at
+    datetime completed_at
+  }
+  review {
+    integer id PK
+    integer booking_id FK
+    string display_name
+    integer rating
+    text comment
+    string status
+    datetime created_at
+  }
+  status_history {
+    integer id PK
+    integer booking_id FK
+    string from_status
+    string to_status
+    integer changed_by_id FK
+    string actor_label
+    text note
+    datetime created_at
+  }
+  waiver_signature {
+    integer id PK
+    integer booking_id FK
+    integer waiver_id FK
+    string rider_name
+    boolean rider_is_minor
+    string signer_name
+    string emergency_name
+    string emergency_phone
+    string medical_notes
+    string ip_address
+    datetime signed_at
+  }
+  payment_event {
+    integer id PK
+    integer payment_id FK
+    string outcome
+    string detail
+    text payload
+    string remote_ip
+    datetime created_at
+  }
+  user ||--o{ audit_log : "user_id"
+  experience ||--o{ slot : "experience_id"
+  user ||--o{ booking : "user_id"
+  experience ||--o{ booking : "experience_id"
+  user ||--o{ booking : "approved_by_id"
+  slot ||--o{ booking : "slot_id"
+  user ||--o{ booking : "guide_id"
+  horse ||--o{ booking_horses : "horse_id"
+  booking ||--o{ booking_horses : "booking_id"
+  booking ||--o{ message : "booking_id"
+  user ||--o{ message : "user_id"
+  booking ||--o{ notification : "booking_id"
+  user ||--o{ payment : "recorded_by_id"
+  booking ||--o{ payment : "booking_id"
+  booking ||--o{ refund : "booking_id"
+  user ||--o{ refund : "created_by_id"
+  booking ||--o{ review : "booking_id"
+  user ||--o{ status_history : "changed_by_id"
+  booking ||--o{ status_history : "booking_id"
+  waiver ||--o{ waiver_signature : "waiver_id"
+  booking ||--o{ waiver_signature : "booking_id"
+  payment ||--o{ payment_event : "payment_id"

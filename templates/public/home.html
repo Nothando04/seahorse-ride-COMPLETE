@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import exp_card, art, icon, herd_section %}
+{% block content %}
+{% set hero = photo('hero') %}
+<section class="hero2">
+  {% if hero %}<img src="{{ hero }}" alt="{{ photo_alt(hero) or 'Riders on horseback along the beach' }}" fetchpriority="high">
+  {% else %}<img src="{{ url_for('static', filename='img/hero.svg') }}" alt="">{% endif %}
+  <div class="container">
+    <div class="content">
+      <div class="kicker">Beach rides · Group packages · Private events</div>
+      <h1>Your Next Beach Adventure<br><em>Starts Here</em></h1>
+      <p class="lead">Ride the shoreline on calm, beach-trained horses with guides who know every tide. Couples, families, friends, travellers and celebrations of every kind.</p>
+      <div class="row" style="margin-top:34px;gap:12px">
+        <a class="btn btn-primary" href="{{ url_for('booking.book') }}">Book Your Ride {{ icon('arrow', 'icon') }}</a>
+        <a class="btn btn-sand" href="{{ url_for('booking.plan_event') }}">Plan Your Event</a>
+        <a class="btn btn-outline-light" href="{{ url_for('public.packages') }}">Explore Packages</a>
+      </div>
+      <p class="assure">{{ icon('shield') }} Every booking is personally reviewed by our team — you only pay once it's approved.</p>
+    </div>
+  </div>
+  <div class="aside">Salt air.<br>Soft sand.<br>A horse you'll remember.</div>
+  <div class="stripe"></div>
+</section>
+
+<section class="trust" aria-label="Why book with us">
+  <div class="container">
+    {% for ic, title, body in [('shield', 'Every booking reviewed', 'Safety, horse fit and conditions checked by our team.'), ('users', 'Matched to your riders', 'Age and experience shape the horses we choose.'), ('card', 'Pay securely online', ('Visa or Mastercard via Paystack — after approval.' if payment_provider == 'paystack' else 'Card or Instant EFT via PayFast — after approval.')), ('calendar', 'Confirmed when paid', 'Instant confirmation, receipt and calendar invite.')] %}
+    <div class="item"><span class="ic">{{ icon(ic) }}</span><div><strong>{{ title }}</strong><span>{{ body }}</span></div></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="container split-intro reveal">
+    <div><span class="eyebrow">Not off the shelf</span><h2 class="big">A great ride starts with a good conversation.</h2></div>
+    <div>
+      <p class="lede">Tell us about your riders, the occasion and when you'd like to come. Our team checks horse suitability, group size, tides and availability before confirming a final price — so the day fits you, not the other way round.</p>
+      <div class="numbered">
+        <div><span class="n">01</span><h3>Create your account</h3><p>Sign up in a minute — your bookings, messages and receipts live in one place.</p></div>
+        <div><span class="n">02</span><h3>Send a request</h3><p>Pick a ride, date and group. Nothing is charged.</p></div>
+        <div><span class="n">03</span><h3>Approve, pay, ride</h3><p>We confirm the price; you pay securely and you're booked.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
+  <div class="container">
+    <div class="row between" style="align-items:end;margin-bottom:30px">
+      <div><span class="eyebrow">Featured experiences</span><h2 class="big" style="margin:0">Find your ride</h2></div>
+      <a class="arrow-link" href="{{ url_for('public.experiences') }}">All experiences {{ icon('arrow') }}</a>
+    </div>
+    <div class="grid g3">{% for e in featured %}{{ exp_card(e) }}{% else %}<p class="muted">Experiences will appear here once published.</p>{% endfor %}</div>
+  </div>
+</section>
+
+{{ herd_section() }}
+
+{% set story = photo('story') %}
+<section class="section">
+  <div class="container split-photo">
+    <div class="ph reveal">
+      {% if story %}<img src="{{ story }}" alt="{{ photo_alt(story) }}" loading="lazy">{% else %}{{ art(2) }}{% endif %}
+      <div class="badge-float"><strong>First ride?</strong>Helmets, briefing & a calm horse included</div>
+    </div>
+    <div class="reveal">
+      <span class="eyebrow">Ride, gather, celebrate</span>
+      <h2 class="big">Made for the moments that stay with you.</h2>
+      <p class="lede">From an unhurried sunset ride for two to a birthday on the beach or a team day out, every experience is planned around your people and our horses.</p>
+      <ul class="check-list" style="margin:18px 0 26px">
+        <li>First-time riders welcome — helmets and a safety briefing included</li>
+        <li>Private sessions for couples, proposals and celebrations</li>
+        <li>Group and corporate packages with tailored quotes</li>
+      </ul>
+      <a class="arrow-link" href="{{ url_for('public.packages') }}">See all packages {{ icon('arrow') }}</a>
+    </div>
+  </div>
+</section>
+
+{% set band = photo('band') %}
+<section class="band">
+  {% if band %}<img src="{{ band }}" alt="" loading="lazy">{% else %}{{ art(1) }}{% endif %}
+  <div class="container">
+    <span class="kicker">The Seahorse way</span>
+    <blockquote>“Space to breathe, a horse to trust, and the whole shoreline ahead of you.”</blockquote>
+    <p style="margin-top:20px">Our guides read the beach, the tide and the weather on the day — your safety always comes first.</p>
+    <a class="btn btn-outline-light" style="margin-top:12px" href="{{ url_for('public.safety') }}">Safety & eligibility</a>
+  </div>
+</section>
+
+
+{% if photo_count() >= 4 or gallery|length >= 4 %}
+<section class="section alt">
+  <div class="container">
+    <div class="row between" style="align-items:end;margin-bottom:24px">
+      <div><span class="eyebrow">Gallery</span><h2 class="big" style="margin:0">Moments on the shore</h2></div>
+      <a class="arrow-link" href="{{ url_for('public.gallery') }}">View gallery {{ icon('arrow') }}</a>
+    </div>
+    {% set n = [5, gallery|length if gallery else photo_count()]|min %}
+    <div class="mosaic m{{ n }} reveal">
+      {% if gallery %}
+        {% for img in gallery[:5] %}<div><img src="{{ url_for('public.media', rel=img.path) }}" alt="{{ img.caption or 'Beach ride' }}" loading="lazy"></div>{% endfor %}
+      {% else %}
+        {% for i in range(n) %}{% set u = photo_n(i) %}<div><img src="{{ u }}" alt="{{ photo_alt(u) }}" loading="lazy"></div>{% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="container grid g2" style="align-items:start;gap:48px">
+    <div>
+      <span class="eyebrow">Riders say</span>
+      <h2 class="big">Reviews</h2>
+      {% for r in reviews %}
+        <div class="card flat" style="margin-bottom:14px"><div class="stars" aria-label="{{ r.rating }} out of 5">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</div><p class="review">“{{ r.comment }}”</p><p class="small muted" style="margin:0">— {{ r.display_name }}</p></div>
+      {% else %}
+        <p class="muted">Reviews from riders appear here after their rides. We only publish genuine reviews from completed bookings.</p>
+      {% endfor %}
+    </div>
+    <div>
+      <span class="eyebrow">Good to know</span>
+      <h2 class="big">Questions, answered</h2>
+      {% for q, a in faqs %}<details class="faq"><summary>{{ q }}</summary><p>{{ a }}</p></details>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="cta reveal">
+      <div><span class="eyebrow">Your occasion, on horseback</span><h2 class="big">A birthday, a team day, a first ride. Let's make a plan.</h2></div>
+      <div class="row">
+        {% if current_user %}<a class="btn btn-primary" href="{{ url_for('booking.book') }}">Book Your Ride</a>
+        {% else %}<a class="btn btn-primary" href="{{ url_for('account.sign_up', next=url_for('booking.book')) }}">Create an account to book</a>{% endif %}
+        <a class="btn btn-ghost" href="{{ url_for('public.contact') }}">Contact Us</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

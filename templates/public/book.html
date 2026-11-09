@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, err, page_hero %}
+{% block title %}Book Your Ride — {{ site.business_name }}{% endblock %}
+{% block content %}
+{{ page_hero("Booking request", "Book Your Ride", "Six quick steps. Submitting is free — no payment is taken and nothing is confirmed until our team approves your request.") }}
+<section class="section" style="padding-top:36px">
+  <div class="narrow">
+    {% if site.ops_status == 'paused' %}<div class="flash warning">Rides are currently paused{% if site.ops_message %} ({{ site.ops_message }}){% endif %}. You can still send a request for a later date.</div>{% endif %}
+    <ol class="stepper" aria-hidden="true">
+      <li>Experience</li><li>Date & place</li><li>Group & horses</li><li>Extras</li><li>Contact</li><li>Review</li>
+    </ol>
+    <form method="post" class="card" data-booking novalidate
+          data-exps='{{ exp_json }}' data-addons='{{ addon_json }}'
+          data-age-groups='{{ age_groups|tojson }}'
+          data-levels='{{ levels|tojson }}'>
+      {{ csrf() }}
+      <input type="hidden" name="nonce" value="{{ nonce }}">
+      {% if form.errors %}<div class="flash error" role="alert">Please fix: {{ form.errors.values()|join(' ') }}</div>{% endif %}
+
+      <fieldset class="step" data-step="experience">
+        <legend>1. Choose a ride or package</legend>
+        <div class="options {% if form.errors.get('experience_id') %}has-error{% endif %}">
+          {% set chosen = form.data.get('experience_id') or (preselect|string if preselect else '') %}
+          {% for e in experiences %}
+          <div class="option">
+            <input type="radio" name="experience_id" id="exp{{ e.id }}" value="{{ e.id }}" required {% if chosen == e.id|string %}checked{% endif %}>
+            <label for="exp{{ e.id }}"><strong>{{ e.name }}</strong><span class="small muted">{{ e|price_label }}{% if e.duration_minutes %} · {{ e.duration_minutes }} min{% endif %}{% if e.max_group %} · up to {{ e.max_group }}{% endif %}{% if e.min_age %} · {{ e.min_age }}+{% endif %}</span></label>
+          </div>
+          {% endfor %}
+        </div>
+        {{ err(form, 'experience_id') }}
+        <p class="small muted" style="margin-top:14px">Planning a birthday, proposal, corporate or school outing? <a href="{{ url_for('booking.plan_event') }}">Use the event planner</a> instead.</p>
+      </fieldset>
+
+      <fieldset class="step" data-step="date">
+        <legend>2. Choose your date, time and place</legend>
+        <p class="small muted">Sessions show live remaining places. Pending requests don't hold a place — your session is reserved when we approve it.</p>
+        <div class="slot-grid" data-slots data-url="{{ url_for('public.api_slots') }}" data-selected="{{ form.data.get('slot_id', '') }}"><p class="muted">Choose an experience first.</p></div>
+        {{ err(form, 'slot_id') }}
+        <details style="margin-top:18px" {% if form.data.get('preferred_date') %}open{% endif %}>
+          <summary class="small" style="cursor:pointer;font-weight:700">Can't see a suitable time? Suggest your own</summary>
+          <div class="form-grid" style="margin-top:12px">
+            {{ field(form, 'preferred_date', 'Preferred date', 'date', required=false) }}
+            {{ field(form, 'preferred_time', 'Preferred time', 'time', required=false) }}
+          </div>
+          <p class="small muted">If your time isn't available, we'll suggest alternatives — or <a href="{{ url_for('booking.plan_event') }}">send a custom enquiry</a>.</p>
+        </details>
+        {{ field(form, 'alternative_date', 'Alternative date', 'date', required=false, hint='Helps us find you a spot if your first choice is full.') }}
+        {% include "partials/place_picker.html" %}
+      </fieldset>
+
+      <fieldset class="step" data-step="people">
+        <legend>3. Who's coming, and which horses?</legend>
+        <div class="form-grid">
+          {{ field(form, 'adults', 'Adults (18+)', 'number', value=form.data.get('adults', '2'), attrs='min="0" max="200"') }}
+          {{ field(form, 'children', 'Children (under 18)', 'number', value=form.data.get('children', '0'), attrs='min="0" max="200"') }}
+          {{ field(form, 'riders', 'How many will ride?', 'number', value=form.data.get('riders', '2'), attrs='min="1" max="200"') }}
+          {{ field(form, 'spectators', 'Non-riding guests', 'number', required=false, value=form.data.get('spectators', '0'), attrs='min="0" max="200"') }}
+        </div>
+        <label>Each rider's age group and experience</label>
+        <div data-rider-rows {% for i in range(30) %}{% if form.data.get('rider_age_' ~ i) %}data-age{{ i }}="{{ form.data.get('rider_age_' ~ i) }}" data-exp{{ i }}="{{ form.data.get('rider_exp_' ~ i) }}"{% endif %}{% endfor %}>
+          <noscript>
+            {% for i in range(2) %}<div class="rider-row"><span>Rider {{ i + 1 }}</span>
+              <select name="rider_age_{{ i }}">{% for k, l, m in age_groups %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+              <select name="rider_exp_{{ i }}">{% for k, l in levels %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>{% endfor %}
+          </noscript>
+        </div>
+        {{ err(form, 'riders_detail') }}
+        <p class="hint">Weight and height limits depend on our horses and are confirmed during review — mention anything relevant in step 5.</p>
+        {% include "partials/horse_picker.html" %}
+      </fieldset>
+
+      <fieldset class="step" data-step="extras">
+        <legend>4. Any extras?</legend>
+        {% for a in addons %}
+          <label class="checkbox card flat" style="margin-bottom:10px;padding:14px">
+            <input type="checkbox" name="addons" value="{{ a.id }}" data-name="{{ a.name }}" {% if a.id|string in request.form.getlist('addons') %}checked{% endif %}>
+            <span><strong>{{ a.name }}</strong> — {{ (a.price_cents|money) if a.price_cents is not none else 'price on request' }}{% if a.price_cents is not none %} {{ 'per rider' if a.price_basis == 'per_person' else 'per booking' }}{% endif %}<br><span class="small muted">{{ a.description }}</span></span>
+          </label>
+        {% else %}<p class="muted">No add-ons available right now.</p>{% endfor %}
+        <div class="estimate" data-estimate aria-live="polite"></div>
+      </fieldset>
+
+      <fieldset class="step" data-step="contact">
+        <legend>5. Your details</legend>
+        <div class="form-grid">
+          {{ field(form, 'contact_name', 'Full name', value=form.data.get('contact_name') or (current_user.name if current_user else ''), attrs='autocomplete="name"') }}
+          {{ field(form, 'contact_email', 'Email (your account)', 'email', value=current_user.email, attrs='readonly', hint='Booking updates go to your account email.') }}
+          {{ field(form, 'contact_phone', 'Mobile number', 'tel', value=form.data.get('contact_phone') or (current_user.phone if current_user and current_user.phone else ''), attrs='autocomplete="tel"') }}
+          <div class="field {% if form.errors.get('preferred_contact') %}has-error{% endif %}">
+            <label for="preferred_contact">Preferred contact method</label>
+            <select id="preferred_contact" name="preferred_contact" required>{% for m in contact_methods %}<option value="{{ m }}" {% if form.data.get('preferred_contact') == m %}selected{% endif %}>{{ m|capitalize }}</option>{% endfor %}</select>
+          </div>
+        </div>
+        {{ field(form, 'accessibility', 'Accessibility or medical needs we should know about', 'textarea', required=false) }}
+        {{ field(form, 'special_requests', 'Special requests or notes', 'textarea', required=false, hint="e.g. it's a surprise proposal, nervous riders, rider heights/weights") }}
+      </fieldset>
+
+      <fieldset class="step" data-step="review">
+        <legend>6. Review and submit</legend>
+        <div class="summary card flat" data-summary><p class="muted">Your summary appears here.</p></div>
+        <div class="estimate" data-estimate style="margin-top:14px"></div>
+        <div class="note" style="margin:18px 0">
+          <strong>What happens next:</strong> your request goes to our team as <em>Pending Admin Approval</em>. Nothing is charged and your place isn't reserved yet. Once approved you'll get the final price, a payment deadline and a secure payment link.
+        </div>
+        <div class="field {% if form.errors.get('accept_terms') %}has-error{% endif %}">
+          <label class="checkbox"><input type="checkbox" name="accept_terms" required {% if form.checked('accept_terms') %}checked{% endif %}>
+            <span>I've read the <a href="{{ url_for('public.terms') }}" target="_blank">booking terms</a>, <a href="{{ url_for('public.cancellation') }}" target="_blank">cancellation policy</a> and <a href="{{ url_for('public.safety') }}" target="_blank">safety & eligibility</a> information.</span></label>
+          {{ err(form, 'accept_terms') }}
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Submit booking request</button>
+      </fieldset>
+
+      <div class="step-nav">
+        <button type="button" class="btn btn-ghost" data-prev data-keep>Back</button>
+        <button type="button" class="btn btn-ocean" data-next data-keep>Continue</button>
+      </div>
+    </form>
+  </div>
+</section>
+<style>.js .step-nav [data-next]{display:inline-flex}.step.active[data-step=review] ~ .step-nav [data-next]{display:none}html:not(.js) .step-nav{display:none}</style>
+{% endblock %}

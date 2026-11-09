@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import badge %}
+{% block title %}Requests & bookings{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Requests & bookings</h1><span class="muted small">{{ bookings|length }} shown</span></div>
+<form class="filters card flat" method="get">
+  <div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ args.get('q', '') }}" placeholder="Reference, name, email, phone"></div>
+  <div><label for="status">Status</label><select id="status" name="status"><option value="">All</option><option value="open" {% if args.get('status') == 'open' %}selected{% endif %}>Needs a decision</option>{% for s in statuses %}<option {% if args.get('status') == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <div><label for="kind">Type</label><select id="kind" name="kind"><option value="">All</option><option value="booking" {% if args.get('kind') == 'booking' %}selected{% endif %}>Bookings</option><option value="event" {% if args.get('kind') == 'event' %}selected{% endif %}>Event enquiries</option></select></div>
+  <div><label for="event_type">Event type</label><select id="event_type" name="event_type"><option value="">All</option>{% for t in event_types %}<option {% if args.get('event_type') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div><label for="package">Package</label><select id="package" name="package"><option value="">All</option>{% for p in packages %}<option value="{{ p.id }}" {% if args.get('package') == p.id|string %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+  <div><label for="from">Ride date from</label><input id="from" type="date" name="from" value="{{ args.get('from', '') }}"></div>
+  <div><label for="to">to</label><input id="to" type="date" name="to" value="{{ args.get('to', '') }}"></div>
+  <div style="flex:0"><button class="btn btn-ocean btn-sm" data-keep>Filter</button></div>
+</form>
+<div class="table-wrap"><table>
+  <thead><tr><th>Reference</th><th>Customer</th><th>Experience</th><th>Ride date</th><th>Riders</th><th>Price</th><th>Status</th><th>Received</th></tr></thead>
+  <tbody>
+  {% for b in bookings %}
+  <tr>
+    <td><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}"><strong>{{ b.reference }}</strong></a>{% if b.kind == 'event' %}<br><span class="pill">Event</span>{% endif %}</td>
+    <td>{{ b.contact_name }}<br><span class="small muted">{{ b.contact_email }}</span></td>
+    <td>{{ b.display_name }}{% if b.event_type %}<br><span class="small muted">{{ b.event_type }}</span>{% endif %}</td>
+    <td>{{ b.preferred_date.strftime('%a %d %b %Y') }}<br><span class="small muted">{{ b.slot.start_time if b.slot else (b.preferred_time or '') }}</span></td>
+    <td>{{ b.riders }} <span class="small muted">/ {{ b.group_size }}</span></td>
+    <td>{{ (b.final_price_cents|money) if b.final_price_cents else ('est. ' ~ (b.estimate_cents|money) if b.estimate_cents else '—') }}</td>
+    <td>{{ badge(b.status) }}</td>
+    <td class="small muted">{{ b.created_at|dt('%d %b %H:%M') }}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="muted">No bookings match these filters.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, err %}
+{% block title %}Choose a new password — {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="section"><div class="narrow" style="max-width:460px">
+  <h1 style="font-size:2.2rem">Choose a new password</h1>
+  <form method="post" class="card">{{ csrf() }}
+    <div class="field"><label for="password">New password</label><input id="password" type="password" name="password" required minlength="10" autocomplete="new-password">{{ err(form, 'password') }}</div>
+    <button class="btn btn-primary btn-block">Save password</button></form>
+</div></section>
+{% endblock %}

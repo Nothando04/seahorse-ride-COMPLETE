@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, badge %}
+{% block title %}Pay for {{ b.reference }} — {{ site.business_name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:40px"><div class="narrow" style="max-width:620px">
+  <p><a href="{{ url_for('booking.view', ref=b.reference) }}">← Back to booking {{ b.reference }}</a></p>
+  <h1 style="font-size:2.3rem">Secure payment</h1>
+  {% if reason %}
+    <div class="flash error">{{ reason }}</div>
+  {% else %}
+  <div class="card">
+    <div class="row between"><strong>{{ b.display_name }}</strong>{{ badge(b.status) }}</div>
+    <dl class="kv" style="margin:16px 0">
+      <dt>Reference</dt><dd>{{ b.reference }}</dd>
+      <dt>Session</dt><dd>{{ b.slot.label if b.slot else '—' }}</dd>
+      <dt>Group</dt><dd>{{ b.group_size }} people, {{ b.riders }} rider(s)</dd>
+      <dt>Final price</dt><dd>{{ b.final_price_cents|money }}</dd>
+      <dt>Already paid</dt><dd>{{ b.amount_paid_cents|money }}</dd>
+      {% if b.payment_deadline and b.status == 'Approved — Awaiting Payment' %}<dt>Deadline</dt><dd>{{ b.payment_deadline|dt }} UTC</dd>{% endif %}
+    </dl>
+    <div class="price-box" style="margin-bottom:18px"><span class="small muted">Amount due now</span><div class="amount">{{ b.amount_due_now_cents|money }}</div>
+      <span class="small" style="opacity:.9">{{ 'Deposit' if b.payment_mode == 'deposit' and not b.amount_paid_cents else ('Balance' if b.amount_paid_cents else 'Full payment') }}</span></div>
+    {% if checkout %}
+      <form method="post" action="{{ checkout.action }}" data-autosubmit>
+        {% for k, v in checkout.fields %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+        <button class="btn btn-primary btn-block">Continue to PayFast…</button>
+      </form>
+      <p class="small muted center" style="margin:10px 0 0">Taking you to PayFast's secure payment page…</p>
+    {% else %}
+      <form method="post">{{ csrf() }}<button class="btn btn-primary btn-block">Pay {{ b.amount_due_now_cents|money }} securely with {{ gateway_name }}</button></form>
+      {% if payment_provider == 'paystack' %}
+      <p class="small muted center" style="margin:10px 0 0">Visa or Mastercard. You'll enter your card number, expiry date and CVV on Paystack's secure checkout page.</p>
+      {% else %}
+      <p class="small muted center" style="margin:10px 0 0">Card (Visa, Mastercard), Instant EFT and other methods offered by PayFast.</p>
+      {% endif %}
+    {% endif %}
+    <ul class="check-list small" style="margin-top:18px">
+      <li>You'll complete payment on {{ gateway_name }}'s secure page. We never see or store your card details.</li>
+      <li>Your booking is confirmed automatically once {{ gateway_name }} confirms the payment directly with us.</li>
+      <li>Cancellations and refunds follow our <a href="{{ url_for('public.cancellation') }}">cancellation policy</a>.</li>
+    </ul>
+    {% if current_user and current_user.is_staff %}
+      {% if payment_provider == 'paystack' %}{% if not paystack_ready %}<div class="note small"><strong>Staff note:</strong> PAYMENT_PROVIDER=paystack but PAYSTACK_SECRET_KEY is not set (it starts with sk_test_ or sk_live_). Customers can't pay until it is added.</div>{% endif %}
+      {% elif payment_provider != 'payfast' %}<div class="note small"><strong>Staff note:</strong> PAYMENT_PROVIDER is set to the offline simulator. Set PAYMENT_PROVIDER=payfast to use PayFast.</div>
+      {% elif not can_confirm %}<div class="note small"><strong>Staff note:</strong> PayFast can't reach this computer, so payments won't confirm automatically. Start the site with PAYFAST_TUNNEL=true or deploy it on HTTPS.</div>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div></section>
+{% endblock %}

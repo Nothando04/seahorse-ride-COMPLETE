@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import exp_card, page_hero, herd_section %}
+{% block title %}Experiences & Beach Rides — {{ site.business_name }}{% endblock %}
+{% block description %}Guided beach horse rides and experiences for beginners and confident riders: duration, group size, age requirements and what's included.{% endblock %}
+{% block content %}
+{{ page_hero("Experiences & rides", "Guided rides along the shore", "Every ride is led by an experienced guide. Tell us about each rider when you book and we'll match horses to riders.") }}
+<section class="section">
+  <div class="container">
+    <h2>Rides</h2>
+    <div class="grid g3">{% for e in rides %}{{ exp_card(e) }}{% else %}<p class="muted">No rides published yet.</p>{% endfor %}</div>
+    <h2 style="margin-top:56px">Packages</h2>
+    <div class="grid g3">{% for e in packages %}{{ exp_card(e) }}{% endfor %}</div>
+  </div>
+</section>
+{{ herd_section('Horses available by type', alt=true) }}
+<section class="section" style="padding-top:0">
+  <div class="container"><div class="cta">
+    <div><span class="eyebrow">Meet our horses</span><h2 class="big">Names, ages, heights and stories</h2><p class="muted" style="margin:0">Get to know the herd before you ride.</p></div>
+    <a class="btn btn-primary" href="{{ url_for('public.gallery') }}#meet-our-horses">Meet the horses</a>
+  </div></div>
+</section>
+{% endblock %}

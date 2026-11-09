@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import badge %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Reports</h1>
+<form class="row"><input type="date" name="from" value="{{ start.isoformat() }}" style="max-width:170px"><span>to</span><input type="date" name="to" value="{{ end.isoformat() }}" style="max-width:170px"><button class="btn btn-ocean btn-sm" data-keep>Update</button></form></div>
+<div class="row" style="margin-bottom:16px"><a class="btn btn-ghost btn-sm" href="{{ url_for('admin.export', kind='bookings', **{'from': start.isoformat(), 'to': end.isoformat()}) }}">Export bookings CSV</a><a class="btn btn-ghost btn-sm" href="{{ url_for('admin.export', kind='payments', **{'from': start.isoformat(), 'to': end.isoformat()}) }}">Export payments CSV</a><span class="small muted">CSV opens in Excel / Google Sheets.</span></div>
+<div class="grid g4" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  <div class="stat"><div class="n">{{ d.requests }}</div><div class="l">Requests received</div></div>
+  <div class="stat"><div class="n">{{ '%.0f'|format(d.conversion) }}%</div><div class="l">Enquiry → paid conversion</div></div>
+  <div class="stat"><div class="n">{{ d.booked_value|money }}</div><div class="l">Approved booking value</div></div>
+  <div class="stat"><div class="n">{{ d.received|money }}</div><div class="l">Payments received</div></div>
+  <div class="stat"><div class="n">{{ d.refunded|money }}</div><div class="l">Refunded{% if d.refunds_pending %} (+{{ d.refunds_pending|money }} pending){% endif %}</div></div>
+  <div class="stat"><div class="n">{{ d.outstanding|money }}</div><div class="l">Outstanding balances (all open)</div></div>
+  <div class="stat"><div class="n">{{ d.cancellations }}</div><div class="l">Cancellations / refunds</div></div>
+  <div class="stat"><div class="n">{{ '%.0f'|format(d.utilisation) }}%</div><div class="l">Capacity used ({{ d.cap_used }}/{{ d.cap_total }} places)</div></div>
+</div>
+<div class="grid g2" style="margin-top:22px">
+  <div class="card"><h3>Popular experiences</h3>{% set mx = (d.by_package[0][1] if d.by_package else 1) %}{% for name, n in d.by_package %}<div class="hbar"><span>{{ name }}</span><div class="meter"><span style="width:{{ (n / mx * 100)|round }}%"></span></div><strong>{{ n }}</strong></div>{% else %}<p class="muted">No data.</p>{% endfor %}</div>
+  <div class="card"><h3>Revenue by month (payments received)</h3>{% set mxr = (d.by_month|map(attribute=1)|max if d.by_month else 1) %}{% for m, c in d.by_month %}<div class="hbar"><span>{{ m }}</span><div class="meter"><span style="width:{{ (c / mxr * 100)|round }}%;background:var(--sunset-500)"></span></div><strong class="small">{{ c|money }}</strong></div>{% else %}<p class="muted">No payments in this period.</p>{% endfor %}</div>
+  <div class="card"><h3>Bookings by status</h3>{% for s, n in d.by_status %}<p class="row between small" style="margin:6px 0">{{ badge(s) }}<strong>{{ n }}</strong></p>{% else %}<p class="muted">No data.</p>{% endfor %}</div>
+  <div class="card"><h3>Customer history (top)</h3>{% for email, name, n in customers %}<p class="row between small" style="margin:6px 0"><span>{{ name }} <span class="muted">{{ email }}</span></span><strong>{{ n }}</strong></p>{% endfor %}</div>
+</div>
+{% endblock %}

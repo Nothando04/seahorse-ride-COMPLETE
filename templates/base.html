@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en-ZA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site.business_name }} — Beach Horse Riding, Group Packages & Private Events{% endblock %}</title>
+  <meta name="description" content="{% block description %}Beach horse-riding experiences for couples, families, friends, tourists and private events. Request a booking — pay only after our team approves it.{% endblock %}">
+  <link rel="canonical" href="{{ request.base_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="{{ self.description() }}">
+  <meta property="og:url" content="{{ request.base_url }}">
+  <meta property="og:image" content="{{ url_for('static', filename='img/logo.png', _external=True) }}">
+  <meta name="theme-color" content="#0e4a5c">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.png') }}" type="image/png">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
+  {% block head %}{% endblock %}
+  <script type="application/ld+json">{{ {"@context": "https://schema.org", "@type": "TouristAttraction", "name": site.business_name, "description": site.tagline, "url": url_for('public.home', _external=True)} | tojson }}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{% if site.ops_status != 'normal' %}
+  <div class="ops-banner {{ site.ops_status }}" role="status">{{ ops_label }}{% if site.ops_message %} — {{ site.ops_message }}{% endif %}</div>
+{% endif %}
+<header class="site-header">
+  <div class="container bar">
+    <a class="brand" href="{{ url_for('public.home') }}"><img class="logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt="{{ site.business_name }} logo" width="54" height="54">{{ site.business_name }}</a>
+    <button class="nav-toggle" data-toggle="site-nav" aria-controls="site-nav" aria-expanded="false" aria-label="Menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    {% set ep = request.endpoint or '' %}
+    <nav class="nav" id="site-nav" aria-label="Main">
+      <a href="{{ url_for('public.experiences') }}" {% if ep.startswith('public.experience') %}aria-current="page"{% endif %}>Experiences</a>
+      <a href="{{ url_for('public.packages') }}" {% if ep == 'public.packages' %}aria-current="page"{% endif %}>Packages</a>
+      <a href="{{ url_for('booking.plan_event') }}" {% if ep == 'booking.plan_event' %}aria-current="page"{% endif %}>Plan Your Event</a>
+      <a href="{{ url_for('public.gallery') }}" {% if ep == 'public.gallery' %}aria-current="page"{% endif %}>Gallery</a>
+      <a href="{{ url_for('public.contact') }}" {% if ep == 'public.contact' %}aria-current="page"{% endif %}>Contact</a>
+      {% if current_user %}
+        {% if current_user.is_staff %}<a href="{{ url_for('admin.dashboard') }}">Staff area</a>{% endif %}
+        <a href="{{ url_for('account.my_bookings') }}" {% if ep.startswith('account.') %}aria-current="page"{% endif %}>My bookings</a>
+      {% else %}
+        <a href="{{ url_for('account.sign_in') }}" {% if ep == 'account.sign_in' %}aria-current="page"{% endif %}>Sign in</a>
+        <a href="{{ url_for('account.sign_up') }}" {% if ep == 'account.sign_up' %}aria-current="page"{% endif %}>Create account</a>
+      {% endif %}
+      <a class="btn btn-primary btn-sm" href="{{ url_for('booking.book') }}">Book Your Ride</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}<div class="container" role="status">{% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="container grid g4">
+    <div>
+      <a class="brand footer-brand" href="{{ url_for('public.home') }}" style="color:#fff"><img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ site.business_name }} logo" width="120" height="120"><span>{{ site.business_name }}</span></a>
+      <p class="small" style="margin-top:12px">{{ site.tagline }}</p>
+    </div>
+    <div>
+      <h4>Explore</h4>
+      <ul>
+        <li><a href="{{ url_for('public.experiences') }}">Experiences & rides</a></li>
+        <li><a href="{{ url_for('public.packages') }}">Packages</a></li>
+        <li><a href="{{ url_for('booking.plan_event') }}">Plan your event</a></li>
+        <li><a href="{{ url_for('public.gallery') }}">Gallery</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <ul>
+        {% if site.contact_phone %}<li><a href="tel:{{ site.contact_phone|replace(' ', '') }}">{{ site.contact_phone }}</a></li>{% endif %}
+        {% if site.contact_email %}<li><a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a></li>{% endif %}
+        {% if site.whatsapp_number %}<li><a href="https://wa.me/{{ site.whatsapp_number }}" rel="noopener">WhatsApp us</a></li>{% endif %}
+        {% if site.address %}<li>{{ site.address }}</li>{% endif %}
+        {% if site.operating_hours %}<li>{{ site.operating_hours }}</li>{% endif %}
+        <li><a href="{{ url_for('public.contact') }}">Send a message</a></li>
+        <li><a href="{{ url_for('public.card') }}">Digital business card</a></li>
+      </ul>
+      <p class="small">
+        {% if site.facebook_url %}<a href="{{ site.facebook_url }}" rel="noopener">Facebook</a> · {% endif %}
+        {% if site.instagram_url %}<a href="{{ site.instagram_url }}" rel="noopener">Instagram</a>{% endif %}
+      </p>
+    </div>
+    <div>
+      <h4>Good to know</h4>
+      <ul>
+        <li><a href="{{ url_for('public.safety') }}">Safety & eligibility</a></li>
+        <li><a href="{{ url_for('public.cancellation') }}">Cancellation & refunds</a></li>
+        <li><a href="{{ url_for('public.terms') }}">Terms & conditions</a></li>
+        <li><a href="{{ url_for('public.privacy') }}">Privacy (POPIA)</a></li>
+        <li><a href="{{ url_for('account.my_bookings') }}">My bookings</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="container legal row between">
+    <span>© {{ site.business_name }}. Secure payments by {{ gateway_name }}. Some photos via Unsplash.</span>
+  </div>
+</footer>
+
+{% if site.whatsapp_number %}<a class="wa-float" href="https://wa.me/{{ site.whatsapp_number }}" rel="noopener" aria-label="Chat on WhatsApp">WhatsApp</a>{% endif %}
+{% if not cookie_ok %}
+<div class="cookie" role="region" aria-label="Cookie notice">
+  <p style="margin:0 0 10px">We only use essential cookies to keep you signed in and protect forms. No advertising or tracking cookies. <a href="{{ url_for('public.privacy') }}">Privacy policy</a>.</p>
+  <form method="post" action="{{ url_for('public.accept_cookies') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ocean btn-sm" data-keep>OK</button></form>
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/site.js') }}" defer></script>
+</body>
+</html>

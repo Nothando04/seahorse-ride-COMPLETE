@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf, field %}
+{% block title %}{{ exp.name or 'New package' }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ url_for('admin.packages') }}">← Packages</a></p>
+<div class="admin-top"><h1>{{ exp.name or 'New package' }}</h1></div>
+<form method="post" enctype="multipart/form-data" class="card">{{ csrf() }}
+  <div class="form-grid">
+    {{ field(form, 'name', 'Name', value=form.data.get('name', exp.name or '')) }}
+    {{ field(form, 'slug', 'URL name', value=form.data.get('slug', exp.slug or ''), hint='lowercase-with-dashes') }}
+    <div class="field"><label for="kind">Type</label><select id="kind" name="kind"><option value="package" {% if exp.kind == 'package' %}selected{% endif %}>Package</option><option value="ride" {% if exp.kind == 'ride' %}selected{% endif %}>Ride / experience</option></select></div>
+    <div class="field"><label for="price_basis">Price basis</label><select id="price_basis" name="price_basis">{% for k, l in [('per_person','Per rider'),('per_group','Per group'),('quote','Quote per event')] %}<option value="{{ k }}" {% if exp.price_basis == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    {{ field(form, 'price', 'Price (R)', required=false, value=form.data.get('price', ('%.2f'|format(exp.price_cents / 100)) if exp.price_cents is not none else ''), hint='Leave blank for "price on request"') }}
+    {{ field(form, 'duration_minutes', 'Duration (minutes)', 'number', required=false, value=form.data.get('duration_minutes', exp.duration_minutes or '')) }}
+    {{ field(form, 'min_group', 'Minimum group', 'number', value=form.data.get('min_group', exp.min_group or 1)) }}
+    {{ field(form, 'max_group', 'Maximum group', 'number', required=false, value=form.data.get('max_group', exp.max_group or '')) }}
+    {{ field(form, 'min_age', 'Minimum rider age', 'number', required=false, value=form.data.get('min_age', exp.min_age or '')) }}
+    {{ field(form, 'difficulty', 'Difficulty', required=false, value=form.data.get('difficulty', exp.difficulty or '')) }}
+    {{ field(form, 'sort_order', 'Display order', 'number', required=false, value=form.data.get('sort_order', exp.sort_order or 100)) }}
+    {{ field(form, 'availability_note', 'Availability note', required=false, value=form.data.get('availability_note', exp.availability_note or '')) }}
+  </div>
+  {{ field(form, 'summary', 'Summary (one sentence)', value=form.data.get('summary', exp.summary or '')) }}
+  {{ field(form, 'description', 'Description', 'textarea', required=false, value=form.data.get('description', exp.description or '')) }}
+  <div class="form-grid">
+    {{ field(form, 'inclusions', 'Inclusions (one per line)', 'textarea', required=false, value=form.data.get('inclusions', exp.inclusions or '')) }}
+    {{ field(form, 'exclusions', 'Exclusions (one per line)', 'textarea', required=false, value=form.data.get('exclusions', exp.exclusions or '')) }}
+    {{ field(form, 'requirements', 'Rider requirements', 'textarea', required=false, value=form.data.get('requirements', exp.requirements or '')) }}
+    {{ field(form, 'safety_notes', 'Safety restrictions', 'textarea', required=false, value=form.data.get('safety_notes', exp.safety_notes or '')) }}
+  </div>
+  {{ field(form, 'terms', 'Package terms', 'textarea', required=false, value=form.data.get('terms', exp.terms or '')) }}
+  <div class="field"><label for="image">Photo</label><input id="image" type="file" name="image" accept="image/*">{% if exp.image_path %}<img src="{{ url_for('public.media', rel=exp.image_path) }}" alt="" style="max-width:220px;border-radius:10px;margin-top:8px">{% endif %}</div>
+  <div class="row"><label class="checkbox"><input type="checkbox" name="is_active" {% if exp.is_active is none or exp.is_active %}checked{% endif %}> Active (shown on site)</label>
+  <label class="checkbox"><input type="checkbox" name="is_featured" {% if exp.is_featured %}checked{% endif %}> Featured on home page</label></div>
+  <div class="row between" style="margin-top:16px"><button class="btn btn-primary">Save package</button></div>
+</form>
+{% if exp.id %}<form method="post" style="margin-top:14px">{{ csrf() }}<input type="hidden" name="action" value="delete"><button class="btn btn-danger btn-sm" data-confirm="Remove this package? If it has bookings it will be deactivated instead.">Remove package</button></form>{% endif %}
+{% endblock %}

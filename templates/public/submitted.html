@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import badge %}
+{% block title %}Request received — {{ b.reference }}{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="narrow center">
+    <span class="eyebrow">Thank you, {{ b.contact_name.split(' ')[0] }}</span>
+    <h1>Your request is in</h1>
+    <p class="muted">We've emailed a confirmation to <strong>{{ b.contact_email }}</strong>.</p>
+    <div class="card" style="margin:26px 0;text-align:left">
+      <div class="row between"><div><span class="small muted">Booking reference</span><div style="font-family:var(--display);font-size:2.2rem;color:var(--ocean-800)">{{ b.reference }}</div></div>{{ badge(b.status) }}</div>
+      <p style="margin-top:14px">{{ status_explanation(b.status) }}</p>
+      <ul class="check-list small">
+        <li><strong>No payment has been taken.</strong> Your place isn't reserved yet.</li>
+        <li>We'll review availability, horses, guides and conditions, usually within one working day.</li>
+        <li>If approved, you'll receive the final price and a secure payment link by email.</li>
+      </ul>
+    </div>
+    <div class="row" style="justify-content:center">
+      <a class="btn btn-primary" href="{{ url_for('booking.view', ref=b.reference) }}">Track this request</a>
+      {% if not current_user %}<a class="btn btn-ghost" href="{{ url_for('account.sign_up') }}">Create an account to see all your bookings</a>{% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

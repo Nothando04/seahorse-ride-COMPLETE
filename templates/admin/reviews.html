@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Reviews{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Reviews</h1></div>
+<p class="small muted">Only customers with a completed booking can leave a review. Approved reviews appear on the home page.</p>
+<div class="table-wrap"><table><thead><tr><th>Booking</th><th>Rating</th><th>Review</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in reviews %}<tr><td><a href="{{ url_for('admin.request_detail', booking_id=r.booking_id) }}">{{ r.booking.reference }}</a><br><span class="small">{{ r.display_name }}</span></td><td class="stars">{{ '★' * r.rating }}</td><td class="small">{{ r.comment }}</td><td>{{ r.status }}</td>
+<td><form method="post" class="row">{{ csrf() }}<input type="hidden" name="review_id" value="{{ r.id }}"><button class="btn btn-ocean btn-sm" name="action" value="approve" data-keep>Approve</button><button class="btn btn-ghost btn-sm" name="action" value="hide" data-keep>Hide</button></form></td></tr>{% else %}<tr><td colspan="5" class="muted">No reviews yet.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Payment simulator{% endblock %}
+{% block content %}
+<section class="section"><div class="narrow" style="max-width:520px">
+  <div class="card" style="border:2px dashed var(--sunset-500)">
+    <span class="eyebrow">Development only — no real money</span>
+    <h1 style="font-size:1.9rem">PayFast simulator</h1>
+    <p class="small muted">This stands in for PayFast's hosted page when running locally (PayFast can't call back to localhost). Choosing an outcome sends a signed ITN through the same verification code used in production.</p>
+    <dl class="kv" style="margin:14px 0">
+      <dt>Merchant</dt><dd>{{ data.merchant_id }}</dd>
+      <dt>Item</dt><dd>{{ data.item_name }}</dd>
+      <dt>Reference</dt><dd>{{ data.m_payment_id }}</dd>
+      <dt>Amount</dt><dd>R{{ data.amount }}</dd>
+      <dt>Customer</dt><dd>{{ data.email_address }}</dd>
+    </dl>
+    <div class="field"><label for="card">Card number (ignored)</label><input id="card" value="4000 0000 0000 0002" disabled></div>
+    {% for outcome, label, cls in [('COMPLETE', 'Pay successfully', 'btn-primary'), ('FAILED', 'Simulate a failed payment', 'btn-ghost'), ('CANCELLED', 'Cancel and return', 'btn-ghost')] %}
+    <form method="post" action="{{ url_for('payments.simulator_complete') }}" style="margin-top:10px">{{ csrf() }}
+      <input type="hidden" name="m_payment_id" value="{{ payment.m_payment_id }}"><input type="hidden" name="outcome" value="{{ outcome }}">
+      <button class="btn {{ cls }} btn-block">{{ label }}</button></form>
+    {% endfor %}
+  </div>
+</div></section>
+{% endblock %}

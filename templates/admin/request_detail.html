@@ -1,0 +1,169 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import badge, csrf %}
+{% block title %}{{ b.reference }}{% endblock %}
+{% block content %}
+{% set open_req = b.status in ['Pending Admin Approval', 'Awaiting Customer Information', 'Changes Proposed', 'Payment Expired'] %}
+<p class="small"><a href="{{ url_for('admin.requests_list') }}">← All requests</a></p>
+<div class="admin-top">
+  <div><h1>{{ b.reference }} · {{ b.display_name }}</h1><span class="muted small">{{ 'Event enquiry' if b.kind == 'event' else 'Booking request' }} received {{ b.created_at|dt }} UTC</span></div>
+  <div class="row">{{ badge(b.status) }}<a class="btn btn-ghost btn-sm" href="{{ url_for('booking.view', ref=b.reference) }}">Customer view</a></div>
+</div>
+
+<div class="split">
+  <div class="stack">
+    <div class="card">
+      <h3>Request</h3>
+      <dl class="kv">
+        <dt>Customer</dt><dd>{{ b.contact_name }} {% if b.user %}<span class="pill">account</span>{% else %}<span class="pill">guest</span>{% endif %}</dd>
+        <dt>Contact</dt><dd><a href="mailto:{{ b.contact_email }}">{{ b.contact_email }}</a> · <a href="tel:{{ b.contact_phone|replace(' ', '') }}">{{ b.contact_phone }}</a> · prefers {{ b.preferred_contact }}</dd>
+        <dt>Requested</dt><dd>{{ b.preferred_date.strftime('%a %d %b %Y') }}{% if b.preferred_time %} at {{ b.preferred_time }}{% endif %}{% if b.alternative_date %} (alt. {{ b.alternative_date.strftime('%d %b') }}){% endif %}</dd>
+        {% if b.slot %}<dt>Allocated session</dt><dd>{{ b.slot.label }}</dd>{% endif %}
+        {% if b.event_type %}<dt>Event type</dt><dd>{{ b.event_type }}</dd>{% endif %}
+        <dt>Group</dt><dd>{{ b.adults }} adults, {{ b.children }} children, {{ b.riders }} riders, {{ b.spectators }} non-riding</dd>
+        <dt>Riders</dt><dd>{% for r in b.rider_list %}{{ r.age_group }} / {{ r.experience }}{{ '; ' if not loop.last }}{% else %}—{% endfor %}</dd>
+        <dt>Add-ons</dt><dd>{{ b.addons|map(attribute='name')|join(', ') or '—' }}</dd>
+        <dt>Where</dt><dd>{{ b.location or '—' }}</dd>
+        <dt>Horse preference</dt><dd>{{ horse_type_label(b.horse_preference) }}{% if b.horse_preference %} <span class="pill">{{ horse_free.get(b.horse_preference, 0) }} free in {{ 'that session' if preselect else 'total' }}</span>{% endif %}</dd>
+        {% if b.budget %}<dt>Budget</dt><dd>{{ b.budget }}</dd>{% endif %}
+        {% if b.duration_wish %}<dt>Duration</dt><dd>{{ b.duration_wish }}</dd>{% endif %}
+        {% if b.activities %}<dt>Activities</dt><dd style="font-weight:400">{{ b.activities }}</dd>{% endif %}
+        {% if b.accessibility %}<dt>Accessibility</dt><dd style="font-weight:400">{{ b.accessibility }}</dd>{% endif %}
+        {% if b.special_requests %}<dt>Notes</dt><dd style="font-weight:400">{{ b.special_requests }}</dd>{% endif %}
+        {% if b.attachment_path %}<dt>Attachment</dt><dd><a href="{{ url_for('public.media', rel=b.attachment_path) }}">Download brief</a></dd>{% endif %}
+        <dt>Estimate</dt><dd>{{ b.estimate_cents|money if b.estimate_cents else 'Quote required' }}</dd>
+        <dt>Terms accepted</dt><dd>{{ b.terms_accepted_at|dt }}</dd>
+      </dl>
+      {% if other_on_day %}<div class="note small" style="margin-top:14px"><strong>Same day:</strong> {% for o in other_on_day %}<a href="{{ url_for('admin.request_detail', booking_id=o.id) }}">{{ o.reference }}</a> ({{ o.riders }} riders, {{ o.status }}){{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+    </div>
+
+    {% if open_req and current_user.can('approve') %}
+    <div class="card" id="approve" style="border:2px solid var(--ocean-400)">
+      <h3>{{ 'Re-approve' if b.status == 'Payment Expired' else 'Approve & send payment link' }}</h3>
+      {% if b.status == 'Payment Expired' %}<p class="small muted">Or use "Extend deadline" below to keep the original approval.</p>{% endif %}
+      <form method="post" action="{{ url_for('admin.request_approve', booking_id=b.id) }}" data-approve data-deposit-percent="{{ deposit_percent }}">{{ csrf() }}
+        <label>Session (remaining places shown, excluding this booking)</label>
+        <div class="slot-grid" style="max-height:260px;margin-bottom:16px">
+          {% set ns = namespace(day=None) %}
+          {% for s, left in slot_rows %}
+            {% if s.date != ns.day %}<div class="day">{{ s.date.strftime('%a %d %b') }}</div>{% set ns.day = s.date %}{% endif %}
+            <div class="option"><input type="radio" name="slot_id" id="s{{ s.id }}" value="{{ s.id }}" {% if s.id == preselect %}checked{% endif %} {% if s.status != 'open' or left < b.riders %}disabled{% endif %} required>
+              <label for="s{{ s.id }}"><strong>{{ s.start_time }}–{{ s.end_time }}</strong><span class="small">{% if s.status != 'open' %}Blocked: {{ s.block_reason }}{% else %}{{ left }}/{{ s.capacity }} free{% endif %}</span></label></div>
+          {% else %}<p class="muted small">No sessions around this date. <a href="{{ url_for('admin.availability', week=b.preferred_date.isoformat()) }}">Create sessions</a> first.</p>{% endfor %}
+        </div>
+        <div class="form-grid">
+          <div class="field"><label for="experience_id">Package</label><select id="experience_id" name="experience_id">{% for p in packages %}<option value="{{ p.id }}" {% if b.experience_id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="final_price">Final price (R)</label><input id="final_price" name="final_price" inputmode="decimal" required value="{{ '%.2f'|format(b.estimate_cents / 100) if b.estimate_cents else '' }}"></div>
+          <div class="field"><label for="deadline">Payment deadline</label><input id="deadline" type="datetime-local" name="deadline" value="{{ deadline_default }}" required><div class="hint">UTC</div></div>
+        </div>
+        <div class="row" style="margin-bottom:14px">
+          <label class="checkbox"><input type="radio" name="payment_mode" value="full" checked> Full payment</label>
+          <label class="checkbox"><input type="radio" name="payment_mode" value="deposit"> Deposit now, balance later</label>
+        </div>
+        <div class="field" data-deposit-row><label for="deposit">Deposit (R)</label><input id="deposit" name="deposit" inputmode="decimal"><div class="hint">Defaults to {{ deposit_percent }}% of the final price.</div></div>
+        <div class="form-grid">
+          <div class="field"><label for="horses">Horses</label><select id="horses" name="horses" multiple size="8">{% for key, info in horse_types_map.items() %}<optgroup label="{{ info[0] }} ({{ horse_free.get(key, 0) }} free){{ ' ★ requested' if key == b.horse_preference }}">{% for h in horses if h.category == key %}<option value="{{ h.id }}" {% if h in b.horses %}selected{% endif %} {% if h.status != 'available' %}disabled{% endif %}>{{ h.name }}{% if h.status != 'available' %} ({{ h.status }}){% endif %}{% if h.max_rider_weight_kg %} · ≤{{ h.max_rider_weight_kg }}kg{% endif %}</option>{% endfor %}</optgroup>{% endfor %}</select><div class="hint">Ctrl/⌘-click for several. Conflicts are checked.</div></div>
+          <div class="field"><label for="guide_id">Guide</label><select id="guide_id" name="guide_id"><option value="">Assign later</option>{% for gd in guides %}<option value="{{ gd.id }}" {% if b.guide_id == gd.id %}selected{% endif %}>{{ gd.name }} ({{ gd.role_label }})</option>{% endfor %}</select></div>
+        </div>
+        <div class="field"><label for="note">Message to the customer (explain any price or package changes)</label><textarea id="note" name="note" maxlength="2000"></textarea></div>
+        <fieldset class="note" style="margin-bottom:16px"><strong class="small">Before approving, confirm:</strong>
+          <label class="checkbox small"><input type="checkbox" name="check_date_time" required> The final date and time are correct</label>
+          <label class="checkbox small"><input type="checkbox" name="check_group_size" required> The group size ({{ b.riders }} riders) is correct and suitable</label>
+          <label class="checkbox small"><input type="checkbox" name="check_price" required> The final price is correct</label>
+          <label class="checkbox small"><input type="checkbox" name="check_availability" required> Horses, guides, safety and conditions are operationally available</label>
+        </fieldset>
+        <button class="btn btn-primary">Approve and email payment link</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <div class="card" id="messages">
+      <h3>Conversation</h3>
+      <div class="thread">
+        {% for m in b.messages %}
+        <div class="msg {{ 'system' if m.sender == 'system' else ('mine' if m.sender == 'admin' and not m.internal else '') }} {{ 'internal' if m.internal }}">
+          <div style="white-space:pre-line">{{ m.body }}</div>
+          <div class="meta">{% if m.internal %}🔒 Private note · {% endif %}{{ m.user.name if m.user else ('Customer' if m.sender == 'customer' else 'System') }} · {{ m.created_at|dt }}{% if m.sender == 'admin' and not m.internal %} · {{ 'read' if m.read_by_customer else 'unread' }}{% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% if current_user.can('message') %}
+      <form method="post" action="{{ url_for('admin.request_message', booking_id=b.id) }}" style="margin-top:12px">{{ csrf() }}
+        <textarea name="body" required maxlength="3000" placeholder="Message the customer (emailed) or add a private note"></textarea>
+        <div class="row" style="margin-top:8px"><label class="checkbox small"><input type="checkbox" name="internal" value="1"> Private admin note (customer never sees it)</label><button class="btn btn-ocean btn-sm">Send</button></div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <aside class="stack">
+    {% if b.final_price_cents %}
+    <div class="card" id="payments">
+      <h3>Payments</h3>
+      <dl class="kv"><dt>Final price</dt><dd>{{ b.final_price_cents|money }}</dd><dt>Mode</dt><dd>{{ b.payment_mode }}{% if b.deposit_cents %} ({{ b.deposit_cents|money }} deposit){% endif %}</dd><dt>Paid</dt><dd>{{ b.amount_paid_cents|money }}</dd><dt>Refunded</dt><dd>{{ b.amount_refunded_cents|money }}</dd><dt>Outstanding</dt><dd>{{ b.balance_cents|money }}</dd><dt>Deadline</dt><dd>{{ b.payment_deadline|dt }}</dd></dl>
+      {% for p in b.payments %}<p class="small" style="margin:8px 0 0">{{ p.m_payment_id }} · {{ p.amount_cents|money }} · <strong>{{ p.status }}</strong> · {{ p.provider }}{% if p.gateway_payment_id %} · {{ p.gateway_payment_id }}{% endif %}{% if p.method_note %} · {{ p.method_note }}{% endif %}</p>{% endfor %}
+      {% for r in b.refunds %}<div class="small" style="margin:8px 0 0">Refund {{ r.amount_cents|money }} · {{ r.status }} · {{ r.reason }}
+        {% if r.status == 'pending' and current_user.can('refunds') %}<form method="post" action="{{ url_for('admin.refund', booking_id=b.id) }}" style="display:inline">{{ csrf() }}<input type="hidden" name="action" value="complete"><input type="hidden" name="refund_id" value="{{ r.id }}"><button class="link-btn" data-confirm="Mark this refund as completed? Process it in PayFast / your bank first.">Mark completed</button></form>{% endif %}</div>{% endfor %}
+      {% if current_user.can('manual_payments') and b.approved_at and b.balance_cents %}
+      <details class="panel" style="margin-top:14px"><summary>Record EFT / cash payment</summary><div>
+        <form method="post" action="{{ url_for('admin.manual_payment', booking_id=b.id) }}">{{ csrf() }}
+          <div class="field"><label for="amount">Amount (R)</label><input id="amount" name="amount" value="{{ '%.2f'|format(b.amount_due_now_cents / 100) }}" required></div>
+          <div class="field"><label for="method">Method</label><select id="method" name="method"><option>EFT (verified on bank statement)</option><option>Cash</option><option>Card machine</option></select></div>
+          <div class="field"><label for="bank_reference">Bank / receipt reference</label><input id="bank_reference" name="bank_reference" required></div>
+          <label class="checkbox small"><input type="checkbox" name="verified" required> I've verified these funds in our account myself (not from a customer screenshot).</label>
+          <button class="btn btn-ocean btn-sm" style="margin-top:10px">Record payment</button>
+        </form></div></details>
+      {% endif %}
+      {% if current_user.can('refunds') and b.amount_paid_cents > b.refunds|sum(attribute='amount_cents') %}
+      <details class="panel"><summary>Start a refund</summary><div>
+        <form method="post" action="{{ url_for('admin.refund', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="create">
+          <div class="field"><label for="ramount">Amount (R)</label><input id="ramount" name="amount" required></div>
+          <div class="field"><label for="reason">Reason</label><input id="reason" name="reason" required></div>
+          <button class="btn btn-danger btn-sm">Start refund</button>
+        </form></div></details>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h3>Actions</h3>
+      {% if open_req and current_user.can('approve') and b.status != 'Payment Expired' %}
+        {% for action, label, cls, ph in [('need_info', 'Ask for more information', 'btn-ocean', 'Your question for the customer'), ('propose_changes', 'Propose changes', 'btn-ocean', 'e.g. Saturday is full — could you do Sunday 08:00? Price would be R…'), ('decline', 'Decline request', 'btn-danger', 'Reason (sent to the customer)')] %}
+        <details class="panel"><summary>{{ label }}</summary><div><form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="{{ action }}"><textarea name="note" required placeholder="{{ ph }}"></textarea><button class="btn {{ cls }} btn-sm" style="margin-top:8px">{{ label }}</button></form></div></details>
+        {% endfor %}
+      {% endif %}
+      {% if b.status in ['Approved — Awaiting Payment', 'Payment Processing', 'Payment Expired'] %}
+        <details class="panel" {% if b.status == 'Payment Expired' %}open{% endif %}><summary>Extend payment deadline</summary><div><form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="extend"><input type="datetime-local" name="deadline" required value="{{ deadline_default }}"><input name="note" placeholder="Note to customer (optional)" style="margin-top:8px"><button class="btn btn-ocean btn-sm" style="margin-top:8px">Extend</button></form></div></details>
+      {% endif %}
+      {% if b.status in ['Confirmed — Paid', 'Rescheduling Requested', 'Rescheduled'] %}
+        <details class="panel" {% if b.status == 'Rescheduling Requested' %}open{% endif %}><summary>Reschedule</summary><div><form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="reschedule">
+          <select name="slot_id" required><option value="">Choose session…</option>{% for s, left in slot_rows if s.status == 'open' and left >= b.riders and s.id != b.slot_id %}<option value="{{ s.id }}">{{ s.label }} ({{ left }} free)</option>{% endfor %}</select>
+          <input name="note" placeholder="Note to customer" style="margin-top:8px"><button class="btn btn-ocean btn-sm" style="margin-top:8px">Move booking</button></form>
+          {% if b.status == 'Rescheduling Requested' %}<form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}" style="margin-top:10px">{{ csrf() }}<input type="hidden" name="action" value="confirm_resched_declined"><input name="note" placeholder="Reason"><button class="btn btn-ghost btn-sm" style="margin-top:8px">Keep original date</button></form>{% endif %}
+          <p class="small muted">Other dates: <a href="{{ url_for('admin.availability', week=b.preferred_date.isoformat()) }}">open calendar</a></p></div></details>
+        <details class="panel"><summary>Horses & guide</summary><div><form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="assign">
+          <select name="horses" multiple size="4">{% for h in horses %}<option value="{{ h.id }}" {% if h in b.horses %}selected{% endif %}>{{ h.name }} ({{ h.status }})</option>{% endfor %}</select>
+          <select name="guide_id" style="margin-top:8px"><option value="">No guide</option>{% for gd in guides %}<option value="{{ gd.id }}" {% if b.guide_id == gd.id %}selected{% endif %}>{{ gd.name }}</option>{% endfor %}</select>
+          <button class="btn btn-ocean btn-sm" style="margin-top:8px">Save</button></form></div></details>
+        <div class="row" style="margin-top:10px">
+          <form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="complete"><button class="btn btn-ocean btn-sm" data-confirm="Mark ride as completed? The customer will be invited to leave a review.">Mark completed</button></form>
+          <form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="no_show"><button class="btn btn-ghost btn-sm" data-confirm="Mark as no-show?">No-show</button></form>
+        </div>
+      {% endif %}
+      {% if b.status not in ['Cancelled', 'Declined', 'Completed', 'No-Show', 'Refunded', 'Refund Pending', 'Partially Refunded'] and current_user.can('approve') %}
+        <details class="panel" style="margin-top:10px"><summary>Cancel booking</summary><div><form method="post" action="{{ url_for('admin.request_action', booking_id=b.id) }}">{{ csrf() }}<input type="hidden" name="action" value="cancel"><textarea name="note" placeholder="Reason (sent to the customer)"></textarea><button class="btn btn-danger btn-sm" style="margin-top:8px" data-confirm="Cancel this booking?{{ ' Paid amounts will move to Refund Pending.' if b.amount_paid_cents }}">Cancel booking</button></form></div></details>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Assignment</h3>
+      <dl class="kv"><dt>Guide</dt><dd>{{ b.guide.name if b.guide else '—' }}</dd><dt>Horses</dt><dd>{{ b.horses|map(attribute='name')|join(', ') or '—' }}</dd><dt>Waivers</dt><dd>{{ b.signatures|length }}/{{ b.riders }}</dd><dt>Checked in</dt><dd>{{ b.checked_in_at|dt }}</dd></dl>
+      {% for s in b.signatures %}<p class="small" style="margin:6px 0 0">{{ s.rider_name }}{% if s.rider_is_minor %} (minor, signed by {{ s.signer_name }}){% endif %} · ICE {{ s.emergency_name }} {{ s.emergency_phone }}{% if s.medical_notes %} · ⚕ {{ s.medical_notes }}{% endif %}</p>{% endfor %}
+    </div>
+
+    <div class="card small">
+      <h3>Status history (audit trail)</h3>
+      <ul class="timeline">{% for h in b.history|reverse %}<li><strong>{{ h.to_status }}</strong>{% if h.from_status and h.from_status != h.to_status %} <span class="muted">from {{ h.from_status }}</span>{% endif %}<br><span class="muted">{{ h.created_at|dt }} · {{ h.actor_label }}</span>{% if h.note %}<br>{{ h.note }}{% endif %}</li>{% endfor %}</ul>
+    </div>
+  </aside>
+</div>
+{% endblock %}

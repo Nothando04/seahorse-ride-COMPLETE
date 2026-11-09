@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Weather & safety{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Weather, tide & safety</h1></div>
+<div class="note small" style="margin-bottom:18px"><strong>Advisory only.</strong> Online forecasts never replace the guide's on-site assessment of wind, surf, tide and beach access. Never proceed solely because a forecast looks favourable. Limits below are your own business rules — none are set by default.</div>
+<div class="grid g2">
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="status">
+    <h3>Operations status</h3>
+    <div class="options" style="margin-bottom:14px">{% for k, l in labels.items() %}<div class="option"><input type="radio" name="ops_status" id="o{{ k }}" value="{{ k }}" {% if s.ops_status == k %}checked{% endif %}><label for="o{{ k }}"><strong>{{ l }}</strong></label></div>{% endfor %}</div>
+    <div class="field"><label for="ops_message">Message shown on the website banner</label><input id="ops_message" name="ops_message" value="{{ s.ops_message }}" placeholder="e.g. Strong winds today — afternoon rides paused"></div>
+    <button class="btn btn-ocean">Update status</button>
+  </form>
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="notify_day">
+    <h3>Weather notice to a day's bookings</h3>
+    <div class="field"><label for="day">Ride date</label><input id="day" type="date" name="day" required></div>
+    <div class="field"><label for="message">Message ({name}, {date}, {reference} are filled in)</label><textarea id="message" name="message">{{ s.weather_template }}</textarea></div>
+    <label class="checkbox small"><input type="checkbox" name="request_reschedule"> Also move confirmed bookings to "Rescheduling Requested"</label>
+    <button class="btn btn-primary" style="margin-top:10px" data-confirm="Send this notice to every booking on that date?">Send notice</button>
+  </form>
+</div>
+<div class="card" style="margin-top:20px">
+  <h3>7-day forecast</h3>
+  {% if not s.weather_latitude %}<p class="muted">Add your beach's latitude and longitude below to see the forecast (Open-Meteo, free, no key needed).</p>
+  {% elif error %}<p class="error-text">{{ error }}</p>
+  {% else %}
+  <div class="table-wrap"><table><thead><tr><th>Date</th><th>Wind max (km/h)</th><th>Gusts (km/h)</th><th>Rain (mm)</th><th>Temp (°C)</th><th>Against your limits</th></tr></thead><tbody>
+  {% for r in forecast %}<tr><td>{{ r.date }}</td><td>{{ r.wind }}</td><td>{{ r.gust }}</td><td>{{ r.rain }}</td><td>{{ r.tmin }}–{{ r.tmax }}</td><td>{% if r.flags %}<span class="badge amber">{{ r.flags|join('; ') }}</span>{% else %}<span class="small muted">within configured limits — guide still decides</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="small muted">Tide and surf are not covered by this forecast — check your usual tide tables.</p>
+  {% endif %}
+</div>
+<form method="post" class="card" style="margin-top:20px">{{ csrf() }}<input type="hidden" name="action" value="limits">
+  <h3>Location & operational limits</h3>
+  <div class="form-grid">
+    <div class="field"><label for="lat">Latitude</label><input id="lat" name="weather_latitude" value="{{ s.weather_latitude }}" placeholder="-29.85"></div>
+    <div class="field"><label for="lon">Longitude</label><input id="lon" name="weather_longitude" value="{{ s.weather_longitude }}" placeholder="31.03"></div>
+    <div class="field"><label for="w">Max wind (km/h)</label><input id="w" name="limit_wind_kmh" value="{{ s.limit_wind_kmh }}"></div>
+    <div class="field"><label for="gu">Max gusts (km/h)</label><input id="gu" name="limit_gust_kmh" value="{{ s.limit_gust_kmh }}"></div>
+    <div class="field"><label for="r">Max rain (mm/day)</label><input id="r" name="limit_rain_mm" value="{{ s.limit_rain_mm }}"></div>
+    <div class="field"><label for="tmin">Min temp (°C)</label><input id="tmin" name="limit_temp_min_c" value="{{ s.limit_temp_min_c }}"></div>
+    <div class="field"><label for="tmax">Max temp (°C)</label><input id="tmax" name="limit_temp_max_c" value="{{ s.limit_temp_max_c }}"></div>
+  </div>
+  <div class="field"><label for="tpl">Default weather message template</label><textarea id="tpl" name="weather_template">{{ s.weather_template }}</textarea></div>
+  <button class="btn btn-ocean">Save</button>
+</form>
+{% endblock %}

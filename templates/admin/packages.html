@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Packages{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Packages & pricing</h1><a class="btn btn-primary btn-sm" href="{{ url_for('admin.package_edit') }}">Add package</a></div>
+<p class="small muted">Prices left empty show as "Price on request". The website never shows invented prices — enter your real ones here.</p>
+<div class="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Price</th><th>Group</th><th>Status</th><th></th></tr></thead><tbody>
+{% for p in packages %}<tr><td><strong>{{ p.name }}</strong>{% if p.is_featured %} <span class="pill">featured</span>{% endif %}<br><span class="small muted">/experiences/{{ p.slug }}</span></td><td>{{ p.kind }}</td><td>{{ p|price_label }}</td><td>{{ p.min_group }}–{{ p.max_group or '∞' }}</td><td>{{ 'Active' if p.is_active else 'Hidden' }}</td><td><a href="{{ url_for('admin.package_edit', exp_id=p.id) }}">Edit</a></td></tr>{% endfor %}
+</tbody></table></div>
+<h2 id="addons" style="margin-top:34px;font-size:1.6rem">Add-ons</h2>
+<div class="table-wrap"><table><thead><tr><th>Add-on</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
+{% for a in addons %}<tr><td><form method="post" action="{{ url_for('admin.addons') }}" class="row">{{ csrf() }}<input type="hidden" name="addon_id" value="{{ a.id }}">
+  <input name="name" value="{{ a.name }}" style="max-width:180px"><input name="description" value="{{ a.description }}" style="max-width:280px">
+  <input name="price" value="{{ '%.2f'|format(a.price_cents / 100) if a.price_cents is not none else '' }}" placeholder="on request" style="max-width:110px">
+  <select name="price_basis" style="max-width:140px"><option value="per_booking" {% if a.price_basis == 'per_booking' %}selected{% endif %}>per booking</option><option value="per_person" {% if a.price_basis == 'per_person' %}selected{% endif %}>per rider</option></select>
+  <button class="btn btn-ocean btn-sm" data-keep>Save</button></form></td>
+  <td>{{ (a.price_cents|money) if a.price_cents is not none else 'On request' }}</td><td>{{ 'Active' if a.is_active else 'Hidden' }}</td>
+  <td><form method="post" action="{{ url_for('admin.addons') }}">{{ csrf() }}<input type="hidden" name="addon_id" value="{{ a.id }}"><input type="hidden" name="action" value="toggle"><button class="link-btn">{{ 'Hide' if a.is_active else 'Show' }}</button></form></td></tr>{% endfor %}
+<tr><td colspan="4"><form method="post" action="{{ url_for('admin.addons') }}" class="row">{{ csrf() }}<input name="name" placeholder="New add-on name" required style="max-width:180px"><input name="description" placeholder="Description" style="max-width:280px"><input name="price" placeholder="Price (blank = on request)" style="max-width:170px"><select name="price_basis" style="max-width:140px"><option value="per_booking">per booking</option><option value="per_person">per rider</option></select><button class="btn btn-primary btn-sm" data-keep>Add</button></form></td></tr>
+</tbody></table></div>
+{% endblock %}

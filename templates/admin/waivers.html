@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Waivers{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Digital waivers</h1></div>
+<div class="note small" style="margin-bottom:18px">The app doesn't provide legal wording. Have your waiver reviewed. A waiver doesn't replace safe operations, supervision or suitable insurance. Every signature records which version was accepted.</div>
+<div class="split">
+  <form method="post" class="card">{{ csrf() }}
+    <h3>Publish a new version</h3>
+    <div class="field"><label for="title">Title</label><input id="title" name="title" required value="{{ waivers[0].title if waivers else '' }}"></div>
+    <div class="field"><label for="body">Waiver text</label><textarea id="body" name="body" required style="min-height:320px">{{ waivers[0].body if waivers else '' }}</textarea></div>
+    <button class="btn btn-ocean" data-confirm="Publish as a new version? New signatures will use it.">Publish new version</button>
+  </form>
+  <div class="stack">
+    <div class="card"><h3>Versions</h3>{% for w in waivers %}<p class="small" style="margin:4px 0">v{{ w.version }} — {{ w.title }} · {{ w.created_at|dt }} {% if w.is_active %}<span class="badge green">active</span>{% endif %}</p>{% endfor %}</div>
+    <div class="card"><h3>Recent signatures</h3>{% for s in signatures %}<p class="small" style="margin:4px 0"><a href="{{ url_for('admin.request_detail', booking_id=s.booking_id) }}">{{ s.booking.reference }}</a> · {{ s.rider_name }}{% if s.rider_is_minor %} (minor){% endif %} · v{{ s.waiver.version }} · {{ s.signed_at|dt }}</p>{% else %}<p class="muted small">None yet.</p>{% endfor %}</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import page_hero %}
+{% set titles = {'safety': 'Safety & eligibility', 'privacy': 'Privacy policy (POPIA)', 'terms': 'Terms & conditions', 'cancellation': 'Cancellation, rescheduling & refunds'} %}
+{% block title %}{{ titles[page] }} — {{ site.business_name }}{% endblock %}
+{% block content %}
+{{ page_hero("Good to know", titles[page]) }}
+<section class="section" style="padding-top:36px">
+  <div class="narrow card">
+    <div class="note small" style="margin-bottom:20px"><strong>Template — business to review.</strong> This page is a starting point and must be reviewed by {{ site.business_name }} (and, where needed, a legal adviser) before launch. Generic templates don't guarantee legal compliance.</div>
+    {% if page == 'safety' %}
+      <h2>Your safety comes first</h2>
+      <p>Horse riding carries inherent risk. Our guides make the final call on whether a ride goes ahead and on each rider's suitability.</p>
+      <h3>Eligibility</h3>
+      <ul class="check-list">
+        <li>Minimum ages are shown on each experience. Children ride with appropriate supervision as agreed during review.</li>
+        <li>Rider weight and height limits depend on the horses available and are confirmed for each booking.</li>
+        <li>Please tell us honestly about riding experience, medical conditions and pregnancy.</li>
+        <li>Riders who appear to be under the influence of alcohol or drugs will not ride.</li>
+      </ul>
+      <h3>On the day</h3>
+      <ul class="check-list">
+        <li>Wear closed shoes and long trousers. Helmets are provided and must be worn.</li>
+        <li>Follow the guide's instructions at all times.</li>
+        <li>Online weather information never replaces the guide's on-site safety assessment of wind, surf, tide and beach access.</li>
+      </ul>
+    {% elif page == 'privacy' %}
+      <h2>How we handle your personal information</h2>
+      <p>{{ site.business_name }} processes personal information in line with South Africa's Protection of Personal Information Act (POPIA).</p>
+      <h3>What we collect and why</h3>
+      <p>Contact details, booking details, rider age groups and experience, accessibility notes and emergency contacts — only what we need to plan a safe ride, communicate with you and meet legal and accounting obligations.</p>
+      <h3>Payments</h3>
+      <p>Card payments are processed by {{ gateway_name }}. We never see or store card numbers or security codes.</p>
+      <h3>Who can see it</h3>
+      <p>Only authorised staff with a business need. Guides see only what they need for the rides they lead.</p>
+      <h3>Retention and your rights</h3>
+      <p>We keep booking and payment records for as long as the law requires for accounting. You may ask to access, correct or delete your information; account holders can delete their account from the profile page. Marketing emails are only sent if you opt in, and you can opt out at any time.</p>
+      <h3>Cookies</h3>
+      <p>We use only essential cookies (sign-in session and form security). No advertising or tracking cookies.</p>
+      <h3>Contact</h3>
+      <p>Information officer: {{ site.contact_email or '[business to add contact details]' }}</p>
+    {% elif page == 'terms' %}
+      <h2>Booking terms</h2>
+      <ol>
+        <li>Submitting a booking request or event enquiry does not reserve a place and no payment is taken.</li>
+        <li>Our team reviews each request and may approve it, decline it, ask for more information or propose changes.</li>
+        <li>An approved booking shows the final price, any deposit, and a payment deadline. The place is held provisionally until that deadline.</li>
+        <li>A booking is confirmed only once payment has been verified by our payment provider (or verified by us for EFT/cash).</li>
+        <li>If payment isn't received by the deadline, the provisional booking is released.</li>
+        <li>Prices are in South African rand (ZAR) unless stated otherwise.</li>
+        <li>Rides may be paused, moved or cancelled for safety, weather or animal-welfare reasons — see the cancellation policy.</li>
+      </ol>
+    {% elif page == 'cancellation' %}
+      <h2>Cancellation, rescheduling & refunds</h2>
+      <p style="white-space:pre-line">{{ site.cancellation_policy }}</p>
+      <h3>Before payment</h3>
+      <p>You can cancel a request at any time before paying, free of charge, from your booking page.</p>
+      <h3>Weather and safety</h3>
+      <p>If we cancel a ride for weather or safety reasons, we'll offer to reschedule or refund according to this policy.</p>
+      <h3>How to request a change</h3>
+      <p>Open your booking and use "Request a new date" or "Cancel". Our team will confirm what applies.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import badge %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Good day, {{ current_user.name.split(' ')[0] }}</h1><span class="muted">{{ ops_label }}</span></div>
+{% set req = current_user.can('manage_requests') %}
+<div class="grid g4" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  {% for key, label, link, alert in [
+      ('new_requests', 'New requests (48h)', url_for('admin.requests_list', status='Pending Admin Approval'), true),
+      ('awaiting_approval', 'Awaiting approval', url_for('admin.requests_list', status='open'), true),
+      ('awaiting_payment', 'Approved — awaiting payment', url_for('admin.requests_list', status='Approved — Awaiting Payment'), false),
+      ('confirmed', 'Upcoming confirmed', url_for('admin.requests_list', status='Confirmed — Paid'), false),
+      ('upcoming_events', 'Upcoming events', url_for('admin.requests_list', kind='event'), false),
+      ('rescheduling', 'Rescheduling requests', url_for('admin.requests_list', status='Rescheduling Requested'), true),
+      ('expired', 'Payment expired', url_for('admin.requests_list', status='Payment Expired'), true),
+      ('failed_payments', 'Failed payments (14d)', url_for('admin.payments', status='failed') if current_user.can('reports') else '#', true),
+      ('cancellations', 'Cancellations (14d)', url_for('admin.requests_list', status='Cancelled'), false),
+      ('new_enquiries', 'New enquiries', url_for('admin.enquiries'), true),
+      ('pending_reviews', 'Reviews to moderate', url_for('admin.reviews') if current_user.can('reviews') else '#', false)] %}
+    <a class="stat {{ 'alert' if alert and widgets[key] }}" href="{{ link if req else '#' }}"><div class="n">{{ widgets[key] }}</div><div class="l">{{ label }}</div></a>
+  {% endfor %}
+  <a class="stat {{ 'alert' if admin_unread }}" href="{{ url_for('admin.messages') if current_user.can('message') else '#' }}"><div class="n">{{ admin_unread }}</div><div class="l">Unread messages</div></a>
+</div>
+
+<div class="split" style="margin-top:24px">
+  <div class="stack">
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Today's rides & events</h3><a class="small" href="{{ url_for('admin.check_in') }}">Check-in →</a></div>
+      {% if todays %}
+      <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Time</th><th>Booking</th><th>Riders</th><th>Guide / horses</th><th>Waivers</th><th></th></tr></thead><tbody>
+      {% for b in todays %}<tr><td>{{ b.slot.start_time }}</td><td><strong>{{ b.reference }}</strong><br><span class="small">{{ b.contact_name }} · {{ b.display_name }}</span></td><td>{{ b.riders }}</td><td class="small">{{ b.guide.name if b.guide else '—' }}<br>{{ b.horses|map(attribute='name')|join(', ') or '—' }}</td><td>{{ b.signatures|length }}/{{ b.riders }}</td><td>{% if req %}<a href="{{ url_for('admin.request_detail', booking_id=b.id) }}">Open</a>{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}<p class="muted" style="margin:10px 0 0">No rides scheduled today.</p>{% endif %}
+    </div>
+    {% if req %}
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Oldest requests awaiting a decision</h3><a class="small" href="{{ url_for('admin.requests_list', status='open') }}">All →</a></div>
+      {% if recent %}<div class="table-wrap" style="margin-top:12px"><table><tbody>
+      {% for b in recent %}<tr><td><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}"><strong>{{ b.reference }}</strong></a><br><span class="small muted">received {{ b.created_at|dt }}</span></td><td>{{ b.contact_name }}<br><span class="small">{{ b.display_name }}</span></td><td>{{ b.preferred_date.strftime('%d %b') }}<br><span class="small">{{ b.riders }} rider(s)</span></td><td>{{ badge(b.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>{% else %}<p class="muted" style="margin:10px 0 0">All caught up. 🎉</p>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="stack">
+    <div class="card">
+      <h3>Capacity alerts (next 7 days)</h3>
+      {% for s, booked in capacity_alerts %}<div style="margin-bottom:10px"><div class="row between small"><span>{{ s.label }}</span><strong>{{ booked }}/{{ s.capacity }}</strong></div><div class="meter"><span style="width:{{ [100, (booked / s.capacity * 100)|round]|min }}%"></span></div></div>
+      {% else %}<p class="muted small" style="margin:0">No sessions above 80% capacity.</p>{% endfor %}
+    </div>
+    <div class="card">
+      <h3>Balances due (rides within 7 days)</h3>
+      {% for b in overdue %}<p class="small" style="margin:6px 0"><a href="{{ url_for('admin.request_detail', booking_id=b.id) }}">{{ b.reference }}</a> — {{ b.balance_cents|money }} due · {{ b.preferred_date.strftime('%d %b') }}</p>
+      {% else %}<p class="muted small" style="margin:0">No outstanding balances.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

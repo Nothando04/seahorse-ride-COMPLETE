@@ -1,0 +1,15 @@
+{# Horse-type preference with live availability. Needs: form, horse_types #}
+{% set pref = form.data.get('horse_preference', '') %}
+<fieldset class="field" style="margin-top:22px">
+  <label>Which kind of horse would suit your group?</label>
+  <p class="hint" style="margin-top:0">Numbers show horses of each type available — they update when you pick a session. Our team makes the final match for safety.</p>
+  <div class="options horse-types">
+    <div class="option"><input type="radio" name="horse_preference" id="hp-none" value="" {% if not pref %}checked{% endif %}>
+      <label for="hp-none"><strong>No preference</strong><span class="small muted">Let our guides match each rider</span></label></div>
+    {% for t in horse_types %}
+    <div class="option"><input type="radio" name="horse_preference" id="hp-{{ t.key }}" value="{{ t.key }}" {% if pref == t.key %}checked{% endif %} {% if not t.available %}disabled{% endif %}>
+      <label for="hp-{{ t.key }}"><span class="horse-count" data-horse-count="{{ t.key }}">{{ t.available }}</span><strong>{{ t.label }}</strong><span class="small muted">{{ t.about }}</span>
+        <span class="small" data-horse-note="{{ t.key }}">{{ t.available }} available</span></label></div>
+    {% endfor %}
+  </div>
+</fieldset>

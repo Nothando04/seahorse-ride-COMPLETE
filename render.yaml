@@ -1,0 +1,52 @@
+# Render Blueprint — New → Blueprint → pick this repository. See README "Going live".
+services:
+  - type: web
+    name: seahorse-ride
+    runtime: python
+    plan: free            # change to "starter" for an always-on site (free sleeps after 15 min idle)
+    # Photos are downloaded while the site is built, so they are there from the first visit (a failed download
+    # never fails the build — the site shows a "photo coming soon" card instead).
+    buildCommand: pip install -r requirements.txt && (flask --app app fetch-photos; flask --app app fetch-horse-photos --starter; true)
+    # Migrations + first-run data + admin account run on every start (free plans have no pre-deploy step).
+    startCommand: flask --app app prepare && gunicorn app:app --workers 2 --threads 4 --timeout 60 --bind 0.0.0.0:$PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false        # optional: a PostgreSQL URL (e.g. from Neon — free, doesn't expire). Leave blank to use
+                           # the built-in SQLite file (works, but is reset whenever the free server restarts/sleeps).
+      - key: DEMO_DATA
+        value: "true"      # first start on an empty database loads example bookings in every status
+      - key: DEMO_PASSWORD
+        sync: false        # optional: password for the demo accounts (defaults to ADMIN_PASSWORD)
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PAYMENT_PROVIDER
+        value: auto        # Paystack card checkout once PAYSTACK_SECRET_KEY is set; PayFast sandbox until then
+      - key: PAYSTACK_SECRET_KEY
+        sync: false        # from Paystack → Settings → API Keys & Webhooks (sk_test_… for test mode)
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false        # pk_test_… (shown in the admin panel only; checkout uses the secret key server-side)
+      - key: PAYFAST_SANDBOX
+        value: "true"       # set to "false" with live credentials to take real payments
+      - key: PAYFAST_TUNNEL
+        value: "false"
+      - key: PAYFAST_MERCHANT_ID
+        sync: false
+      - key: PAYFAST_MERCHANT_KEY
+        sync: false
+      - key: PAYFAST_PASSPHRASE
+        sync: false
+      - key: PUBLIC_SITE_URL
+        sync: false        # optional: your custom domain, e.g. https://seahorseride.co.za
+      - key: BREVO_API_KEY
+        sync: false        # email via Brevo's API (Render's free plan blocks SMTP ports)
+      - key: MAIL_FROM
+        sync: false        # e.g. Seahorse Ride <bookings@yourdomain.co.za> — must be a sender verified in Brevo

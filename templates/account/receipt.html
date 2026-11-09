@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ b.reference }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:36px"><div class="narrow">
+  <div class="row between no-print" style="margin-bottom:14px"><a href="{{ url_for('booking.view', ref=b.reference) }}">← Booking</a><button class="btn btn-ocean btn-sm" data-print data-keep>Print / save as PDF</button></div>
+  <div class="card">
+    <div class="row between"><div><div class="brand"><img class="logo" src="{{ url_for('static', filename='img/logo-small.png') }}" alt="" width="72" height="72">{{ site.business_name }}</div>
+      <p class="small muted" style="margin:6px 0 0">{{ site.address }}{% if site.contact_email %}<br>{{ site.contact_email }}{% endif %}{% if site.contact_phone %} · {{ site.contact_phone }}{% endif %}</p></div>
+      <div style="text-align:right"><h2 style="margin:0">Receipt</h2><p class="small muted" style="margin:0">{{ b.reference }}</p></div></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+    <dl class="kv">
+      <dt>Billed to</dt><dd>{{ b.contact_name }} · {{ b.contact_email }}</dd>
+      <dt>Experience</dt><dd>{{ b.display_name }}</dd>
+      <dt>Session</dt><dd>{{ b.slot.label if b.slot else b.preferred_date }}</dd>
+      <dt>Group</dt><dd>{{ b.group_size }} people, {{ b.riders }} rider(s)</dd>
+      <dt>Status</dt><dd>{{ b.status }}</dd>
+    </dl>
+    <div class="table-wrap" style="margin-top:20px"><table>
+      <thead><tr><th>Payment</th><th>Date</th><th>Method</th><th>Gateway ref</th><th style="text-align:right">Amount</th></tr></thead>
+      <tbody>{% for p in b.payments if p.status == 'paid' %}<tr><td>{{ p.m_payment_id }} ({{ p.kind }})</td><td>{{ p.paid_at|dt }}</td><td>{{ 'Paystack (card)' if p.provider == 'paystack' else ('PayFast' if p.provider in ['payfast', 'simulator'] else p.method_note) }}</td><td>{{ p.gateway_payment_id or '—' }}</td><td style="text-align:right">{{ p.amount_cents|money }}</td></tr>{% endfor %}
+      {% for r in b.refunds if r.status == 'completed' %}<tr><td>Refund</td><td>{{ r.completed_at|dt }}</td><td colspan="2">{{ r.reason }}</td><td style="text-align:right">−{{ r.amount_cents|money }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    <dl class="kv" style="margin-top:18px;justify-content:end">
+      <dt>Booking total</dt><dd>{{ b.final_price_cents|money }}</dd>
+      <dt>Total paid</dt><dd>{{ b.amount_paid_cents|money }}</dd>
+      {% if b.amount_refunded_cents %}<dt>Refunded</dt><dd>{{ b.amount_refunded_cents|money }}</dd>{% endif %}
+      <dt>Balance outstanding</dt><dd>{{ b.balance_cents|money }}</dd>
+    </dl>
+    <p class="small muted" style="margin-top:20px">Amounts in South African rand (ZAR). Card details were processed by {{ gateway_name }} and never stored by {{ site.business_name }}.</p>
+  </div>
+</div></section>
+{% endblock %}

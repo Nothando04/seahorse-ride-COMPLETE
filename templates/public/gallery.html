@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import page_hero, horse_card %}
+{% block title %}Gallery & Meet Our Horses — {{ site.business_name }}{% endblock %}
+{% block description %}Meet the Seahorse Ride horses — their names, ages, heights and stories — and see photos from rides on the beach.{% endblock %}
+{% block content %}
+{{ page_hero("Gallery", "Real rides, real horses", "Meet the horses you'll ride with, read their stories, and see moments from rides on the beach.") }}
+
+<nav class="container gallery-tabs" aria-label="Gallery sections">
+  <a href="#meet-our-horses">Meet our horses</a><a href="#photos">Ride photos</a>
+</nav>
+
+<section class="section" id="meet-our-horses" style="padding-top:30px;padding-bottom:40px">
+  <div class="container">
+    <div class="row between" style="align-items:end;margin-bottom:22px">
+      <div><span class="eyebrow">Meet our horses</span><h2 class="big" style="margin:0">The herd you'll ride with</h2>
+        <p class="muted" style="margin:10px 0 0;max-width:640px">Every horse has a story. Get to know them before your ride — and let us know who you'd love to meet in your booking notes.</p></div>
+      <a class="btn btn-primary" href="{{ url_for('booking.book') }}">Book a ride</a>
+    </div>
+    <div class="horse-filters" role="group" aria-label="Filter horses by type">
+      <button type="button" class="chip on" data-filter="all">All <span>{{ horses|length }}</span></button>
+      {% for key, info in types.items() %}{% set n = horses|selectattr('category', 'equalto', key)|list|length %}{% if n %}
+      <button type="button" class="chip" data-filter="{{ key }}">{{ info[0] }} <span>{{ n }}</span></button>{% endif %}{% endfor %}
+    </div>
+    <div class="slider" data-slider>
+      <button type="button" class="slider-btn prev" data-slide="-1" aria-label="Previous horses">‹</button>
+      <div class="slider-track" data-track tabindex="0" aria-label="Horse profiles — scroll sideways">
+        {% for h in horses %}{{ horse_card(h, types) }}{% else %}<p class="muted">Horse profiles are coming soon.</p>{% endfor %}
+      </div>
+      <button type="button" class="slider-btn next" data-slide="1" aria-label="Next horses">›</button>
+    </div>
+    <p class="small muted slider-hint">Swipe or use the arrows to meet everyone · Breed photos via Wikimedia Commons until we add our own.</p>
+  </div>
+</section>
+
+<section class="section alt" id="photos">
+  <div class="container">
+    <span class="eyebrow">Ride photos</span><h2 class="big">Moments on the shore</h2>
+    {% if images %}
+      <div class="gallery" style="margin-top:20px">{% for img in images %}<figure><img src="{{ url_for('public.media', rel=img.path) }}" alt="{{ img.caption or 'Seahorse Ride beach ride' }}" loading="lazy">{% if img.caption %}<figcaption>{{ img.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>
+    {% else %}
+      <div class="card center"><h3>Photos coming soon</h3><p class="muted">Our team is adding photos from recent rides. In the meantime, <a href="{{ url_for('booking.book') }}">book a ride</a> and make some memories of your own.</p></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

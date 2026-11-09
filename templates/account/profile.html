@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, err %}
+{% block title %}Profile — {{ site.business_name }}{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:40px"><div class="narrow stack">
+  <p><a href="{{ url_for('account.my_bookings') }}">← My bookings</a></p>
+  <h1 style="font-size:2.3rem">Profile & privacy</h1>
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="details">
+    <h3>Contact details</h3>
+    <div class="form-grid">
+      {{ field(form, 'name', 'Full name', value=user.name) }}
+      {{ field(form, 'phone', 'Mobile number', 'tel', required=false, value=user.phone or '') }}
+    </div>
+    <p class="small muted">Email: {{ user.email }} {% if user.email_verified %}<span class="pill">verified</span>{% endif %}</p>
+    <label class="checkbox"><input type="checkbox" name="marketing" {% if user.marketing_opt_in %}checked{% endif %}><span>Send me occasional news and offers</span></label>
+    <button class="btn btn-ocean" style="margin-top:14px">Save details</button>
+  </form>
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="password">
+    <h3>Change password</h3>
+    <div class="form-grid">
+      <div class="field"><label for="cp">Current password</label><input id="cp" type="password" name="current_password" required autocomplete="current-password">{{ err(form, 'current_password') }}</div>
+      <div class="field"><label for="np">New password</label><input id="np" type="password" name="new_password" required minlength="10" autocomplete="new-password">{{ err(form, 'new_password') }}</div>
+    </div>
+    <button class="btn btn-ocean">Change password</button>
+  </form>
+  <form method="post" class="card">{{ csrf() }}<input type="hidden" name="action" value="delete">
+    <h3>Delete my account</h3>
+    <p class="small muted">Your login and personal profile details are removed. Booking and payment records are kept only as long as accounting law requires.</p>
+    <div class="field"><label for="dp">Enter your password to confirm</label><input id="dp" type="password" name="confirm_password" required>{{ err(form, 'confirm_password') }}</div>
+    <button class="btn btn-danger" data-confirm="Delete your account? This can't be undone.">Delete account</button>
+  </form>
+</div></section>
+{% endblock %}

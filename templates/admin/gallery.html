@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Gallery{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Gallery</h1><a class="btn btn-ghost btn-sm" href="{{ url_for('admin.settings') }}">Change home-page hero photo</a></div>
+<form method="post" enctype="multipart/form-data" class="card" style="margin-bottom:20px">{{ csrf() }}<input type="hidden" name="action" value="upload">
+  <h3>Upload photos</h3>
+  <div class="form-grid">
+    <div class="field"><label for="photos">Photos (JPG, PNG, WEBP, max 5 MB each)</label><input id="photos" type="file" name="photos" multiple accept="image/*" required></div>
+    <div class="field"><label for="caption">Caption</label><input id="caption" name="caption"></div>
+    <div class="field"><label for="category">Category</label><select id="category" name="category">{% for c in ['rides','couples','families','groups','celebrations','tourists','behind-the-scenes'] %}<option>{{ c }}</option>{% endfor %}</select></div>
+  </div>
+  <label class="checkbox"><input type="checkbox" name="consent"> Everyone identifiable in these photos agreed to publication</label>
+  <p class="small muted">Photos are resized and location metadata is removed automatically. They stay hidden until you publish them.</p>
+  <button class="btn btn-ocean">Upload</button>
+</form>
+<div class="grid g4">
+{% for img in images %}
+  <div class="card flat" style="padding:12px">
+    <img src="{{ url_for('public.media', rel=img.path) }}" alt="{{ img.caption }}" style="border-radius:10px;aspect-ratio:4/3;object-fit:cover;width:100%">
+    <p class="small" style="margin:8px 0 4px"><span class="badge {{ 'green' if img.is_published else 'grey' }}">{{ 'Published' if img.is_published else 'Hidden' }}</span> {{ img.category }} {% if not img.consent_confirmed %}<span class="badge amber">no consent</span>{% endif %}</p>
+    <form method="post">{{ csrf() }}<input type="hidden" name="image_id" value="{{ img.id }}"><input name="caption" value="{{ img.caption }}" placeholder="Caption" style="min-height:34px;padding:4px 8px">
+      <div class="row" style="margin-top:6px">
+        <button class="btn btn-ghost btn-sm" name="action" value="caption" data-keep>Save caption</button>
+        {% if img.is_published %}<button class="btn btn-ghost btn-sm" name="action" value="unpublish" data-keep>Unpublish</button>
+        {% else %}{% if not img.consent_confirmed %}<label class="checkbox small"><input type="checkbox" name="consent"> consent given</label>{% endif %}<button class="btn btn-ocean btn-sm" name="action" value="publish" data-keep>Publish</button>{% endif %}
+        <button class="link-btn small" name="action" value="delete" data-confirm="Delete this photo?">Delete</button>
+      </div></form>
+  </div>
+{% else %}<p class="muted">No photos yet.</p>{% endfor %}
+</div>
+{% endblock %}

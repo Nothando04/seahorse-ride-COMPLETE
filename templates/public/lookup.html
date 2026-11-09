@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import csrf, field, page_hero %}
+{% block title %}Find my booking — {{ site.business_name }}{% endblock %}
+{% block content %}
+{{ page_hero("Booked as a guest?", "Find my booking", "Enter your booking reference and the email address you used. For your privacy we'll email you a secure link to open it.") }}
+<section class="section" style="padding-top:36px">
+  <div class="narrow" style="max-width:520px">
+    <form method="post" class="card">
+      {{ csrf() }}
+      {{ field(form, 'reference', 'Booking reference', hint='Looks like SR-AB12CD', attrs='autocapitalize="characters"') }}
+      {{ field(form, 'email', 'Email used for the booking', 'email') }}
+      <button class="btn btn-primary btn-block">Email me a secure link</button>
+    </form>
+    <p class="small muted center" style="margin-top:16px">Have an account? <a href="{{ url_for('account.sign_in') }}">Sign in</a> to see all your bookings.</p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import page_hero, art %}
+{% block title %}Packages — Couples, Families, Groups & Events — {{ site.business_name }}{% endblock %}
+{% block description %}Beach horse-riding packages for couples, families, friends, tourists, birthdays, corporate events and custom experiences.{% endblock %}
+{% block content %}
+{{ page_hero("Packages", "Something for every group", "Prices shown are a guide. Your final price is confirmed by our team after reviewing your request — you're never charged when you submit it.") }}
+<section class="section">
+  <div class="container stack">
+    {% for e in packages %}
+    <article class="card pkg-row reveal" id="{{ e.slug }}">
+      {% set img = exp_photo(e) %}<div class="ph" style="aspect-ratio:4/3;border-radius:18px">{% if img %}<img src="{{ img }}" alt="{{ e.name }}" loading="lazy">{% else %}{{ art(e.id) }}{% endif %}</div>
+      <div>
+        <div class="row between"><h2 style="margin:0;font-size:1.7rem">{{ e.name }}</h2><strong style="color:var(--ocean-800)">{{ e|price_label }}</strong></div>
+        <p class="muted">{{ e.summary }}</p>
+        <div class="grid g3" style="gap:18px">
+          <div><strong class="small">Includes</strong><ul class="check-list small">{% for i in e.inclusions|lines %}<li>{{ i }}</li>{% endfor %}</ul></div>
+          <div><strong class="small">Not included</strong><ul class="check-list x-list small">{% for i in e.exclusions|lines %}<li>{{ i }}</li>{% else %}<li>—</li>{% endfor %}</ul></div>
+          <div class="small">
+            <strong>Details</strong>
+            <dl class="kv" style="margin-top:6px">
+              <dt>Price basis</dt><dd>{{ {'per_person':'Per rider','per_group':'Per group','quote':'Quoted per event'}[e.price_basis] }}</dd>
+              {% if e.duration_minutes %}<dt>Duration</dt><dd>{{ e.duration_minutes }} min</dd>{% endif %}
+              <dt>Group</dt><dd>{{ e.min_group }}{% if e.max_group %}–{{ e.max_group }}{% else %}+{% endif %}</dd>
+              {% if e.availability_note %}<dt>Availability</dt><dd>{{ e.availability_note }}</dd>{% endif %}
+            </dl>
+          </div>
+        </div>
+        <div class="row" style="margin-top:14px">
+          {% if e.price_basis == 'quote' %}
+            <a class="btn btn-primary btn-sm" href="{{ url_for('booking.plan_event') }}?package={{ e.id }}">Plan Your Event</a>
+          {% else %}
+            <a class="btn btn-primary btn-sm" href="{{ url_for('booking.book', experience=e.id) }}">Request booking</a>
+          {% endif %}
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('public.experience_detail', slug=e.slug) }}">Terms & full details</a>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+    {% if addons %}
+    <div class="card flat">
+      <h2 style="font-size:1.5rem">Available add-ons</h2>
+      <div class="grid g4">{% for a in addons %}<div><strong>{{ a.name }}</strong><p class="small muted" style="margin:2px 0">{{ a.description }}</p><span class="small">{{ (a.price_cents|money) if a.price_cents is not none else 'Price on request' }}{% if a.price_cents is not none %} {{ 'per rider' if a.price_basis == 'per_person' else 'per booking' }}{% endif %}</span></div>{% endfor %}</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

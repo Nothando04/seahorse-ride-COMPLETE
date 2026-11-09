@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+{% from "partials/macros.html" import csrf %}
+{% block title %}Users & roles{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Users & roles</h1><div class="row"><a class="btn btn-ghost btn-sm" href="?">All</a><a class="btn btn-ghost btn-sm" href="?staff=1">Staff only</a></div></div>
+<div class="note small" style="margin-bottom:16px"><strong>Roles:</strong> Staff/Guide — today's rides & check-in. Booking Administrator — requests, approvals, availability, messages, horses. Manager — plus packages, prices, reports, refunds, manual payments, gallery, reviews, waivers, weather. Super Administrator — everything incl. users, settings and audit log.</div>
+<form method="post" class="card" style="margin-bottom:18px">{{ csrf() }}<input type="hidden" name="action" value="create"><h3>Add a staff member</h3>
+  <div class="form-grid"><div class="field"><label for="name">Name</label><input id="name" name="name" required></div><div class="field"><label for="email">Email</label><input id="email" type="email" name="email" required></div>
+  <div class="field"><label for="role">Role</label><select id="role" name="role">{% for r in roles if r != 'customer' %}<option value="{{ r }}">{{ labels[r] }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="password">Temporary password</label><input id="password" type="text" name="password" minlength="10" required></div></div>
+  <button class="btn btn-ocean">Create staff account</button></form>
+<div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead><tbody>
+{% for u in users %}<tr><td>{{ u.name }}</td><td>{{ u.email }}{% if u.email_verified %} ✓{% endif %}</td>
+<td>{% if u.id != current_user.id %}<form method="post" class="row">{{ csrf() }}<input type="hidden" name="user_id" value="{{ u.id }}"><input type="hidden" name="action" value="role"><select name="role" style="max-width:220px;min-height:36px;padding:4px 8px">{% for r in roles %}<option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ labels[r] }}</option>{% endfor %}</select><button class="btn btn-ghost btn-sm" data-keep>Save</button></form>{% else %}{{ u.role_label }} (you){% endif %}</td>
+<td>{{ 'Active' if u.is_active else 'Disabled' }}</td><td class="small">{{ u.last_login_at|dt }}</td>
+<td>{% if u.id != current_user.id %}<form method="post">{{ csrf() }}<input type="hidden" name="user_id" value="{{ u.id }}"><input type="hidden" name="action" value="toggle"><button class="link-btn">{{ 'Disable' if u.is_active else 'Enable' }}</button></form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
